@@ -24,7 +24,7 @@
       theme: {
         extend: {
           fontFamily: {
-            sans: ['Noto Sans KR', 'sans-serif'],
+            sans: ['Pretendard', 'Noto Sans KR', 'sans-serif'],
             orbitron: ['Orbitron', 'sans-serif'],
           },
         },
@@ -32,8 +32,74 @@
     };
   </script>
   <style>
+  /* ===== Pretendard Full Font-Face ===== */
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2');
+      font-weight: 100;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraLight.woff2') format('woff2');
+      font-weight: 200;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Light.woff2') format('woff2');
+      font-weight: 300;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Regular.woff2') format('woff2');
+      font-weight: 400;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Medium.woff2') format('woff2');
+      font-weight: 500;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-SemiBold.woff2') format('woff2');
+      font-weight: 600;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Bold.woff2') format('woff2');
+      font-weight: 700;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-ExtraBold.woff2') format('woff2');
+      font-weight: 800;
+      font-display: swap;
+  }
+  @font-face {
+      font-family: 'Pretendard';
+      src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Black.woff2') format('woff2');
+      font-weight: 900;
+      font-display: swap;
+  }
+
+  /* 비디오 자막(Video Subtitles/Cue) Pretendard 글꼴 적용 */
+  video::cue, ::cue {
+      font-family: 'Pretendard', sans-serif !important;
+      font-weight: 700 !important;
+      background-color: rgba(0, 0, 0, 0.75) !important;
+      color: #ffffff !important;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+      font-size: 1.15rem !important;
+  }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: #060912; color: #e2e8f0; font-family: 'Noto Sans KR', sans-serif; overflow-x: hidden; }
+    html, body { height: 100%; background: #060912; color: #e2e8f0; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; overflow-x: hidden; }
     .screen { display: none; min-height: 100vh; flex-direction: column; }
     .screen.active { display: flex; }
     .orb { font-family: 'Orbitron', sans-serif; }
