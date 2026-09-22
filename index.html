@@ -17,7 +17,7 @@
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -32,7 +32,7 @@
     };
   </script>
   <style>
-  /* ===== Pretendard Full Font-Face ===== */
+  /* ===== Pretendard Full Font-Face (100 ~ 900) ===== */
   @font-face {
       font-family: 'Pretendard';
       src: url('https://cdn.jsdelivr.net/gh/projectnoonnu/pretendard@1.0/Pretendard-Thin.woff2') format('woff2');
@@ -88,184 +88,226 @@
       font-display: swap;
   }
 
-  /* 비디오 자막(Video Subtitles/Cue) Pretendard 글꼴 적용 */
+  /* 비디오 자막 Pretendard 스타일 */
   video::cue, ::cue {
-      font-family: 'Pretendard', sans-serif !important;
+      font-family: 'Pretendard', -apple-system, sans-serif !important;
       font-weight: 700 !important;
-      background-color: rgba(0, 0, 0, 0.75) !important;
+      background-color: rgba(0, 0, 0, 0.8) !important;
       color: #ffffff !important;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9) !important;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9) !important;
       font-size: 1.15rem !important;
   }
 
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    html, body { height: 100%; background: #060912; color: #e2e8f0; font-family: 'Pretendard', 'Noto Sans KR', sans-serif; overflow-x: hidden; }
-    .screen { display: none; min-height: 100vh; flex-direction: column; }
-    .screen.active { display: flex; }
-    .orb { font-family: 'Orbitron', sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    background: #060912;
+    color: #e2e8f0;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, system-ui, Roboto, sans-serif !important;
+    overflow-x: hidden;
+  }
+  .screen { display: none; min-height: 100vh; flex-direction: column; }
+  .screen.active { display: flex; }
 
-    @keyframes glitch {
-      0%,100% { clip-path: inset(0 0 0 0); transform: translate(0); }
-      20% { clip-path: inset(20% 0 40% 0); transform: translate(-2px,2px); }
-      40% { clip-path: inset(60% 0 10% 0); transform: translate(2px,-2px); }
-      60% { clip-path: inset(10% 0 70% 0); transform: translate(-1px,1px); }
-      80% { clip-path: inset(40% 0 20% 0); transform: translate(1px,-1px); }
-    }
-    @keyframes alertBlink {
-      0%,49% { background: rgba(239,68,68,.15); box-shadow: 0 0 30px rgba(239,68,68,.3); }
-      50%,100% { background: rgba(239,68,68,.03); box-shadow: none; }
-    }
-    @keyframes stampIn {
-      0% { transform: scale(3) rotate(-15deg); opacity: 0; }
-      50% { transform: scale(.9) rotate(3deg); opacity: 1; }
-      100% { transform: scale(1) rotate(0); opacity: 1; }
-    }
-    @keyframes shake {
-      0%,100% { transform: translateX(0); }
-      10%,90% { transform: translateX(-4px); }
-      20%,80% { transform: translateX(4px); }
-      30%,50%,70% { transform: translateX(-6px); }
-      40%,60% { transform: translateX(6px); }
-    }
-    @keyframes blinkAnim { 0%,100% { opacity:1; } 50% { opacity:0; } }
-    @keyframes sirenPulse {
-      0%,100% { background: rgba(239,68,68,.2); }
-      50% { background: rgba(239,68,68,.05); }
-    }
-    @keyframes slideDown {
-      from { transform: translateY(-100%); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    @keyframes bounce {
-      0%,100% { transform: translateY(0); }
-      50% { transform: translateY(-15px); }
-    }
+  /* 세련된 헤드라인 타이포그래피 */
+  .orb { font-family: 'Syne', 'Orbitron', 'Outfit', sans-serif; letter-spacing: 0.05em; }
+  .title-medical {
+    font-family: 'Syne', 'Outfit', 'Pretendard', sans-serif;
+    letter-spacing: 0.12em;
+  }
 
-    .glitch-text { position: relative; animation: glitch 3s infinite; }
-    .glitch-text::before, .glitch-text::after {
-      content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%;
-    }
-    .glitch-text::before { color: #ff0040; animation: glitch 2s infinite; clip-path: inset(30% 0 50% 0); transform: translate(-2px,0); }
-    .glitch-text::after { color: #00f3ff; animation: glitch 2.5s infinite reverse; clip-path: inset(60% 0 10% 0); transform: translate(2px,0); }
-    .alert-blink { animation: alertBlink 1.2s ease-in-out infinite; }
-    .blink { animation: blinkAnim 1s step-end infinite; }
-    .siren-bg { animation: sirenPulse .6s ease-in-out infinite; }
-    .broadcast-modal { animation: slideDown .4s ease; }
+  @keyframes glitch {
+    0%,100% { clip-path: inset(0 0 0 0); transform: translate(0); }
+    20% { clip-path: inset(20% 0 40% 0); transform: translate(-2px,2px); }
+    40% { clip-path: inset(60% 0 10% 0); transform: translate(2px,-2px); }
+    60% { clip-path: inset(10% 0 70% 0); transform: translate(-1px,1px); }
+    80% { clip-path: inset(40% 0 20% 0); transform: translate(1px,-1px); }
+  }
+  @keyframes alertBlink {
+    0%,49% { background: rgba(239,68,68,.15); box-shadow: 0 0 30px rgba(239,68,68,.3); }
+    50%,100% { background: rgba(239,68,68,.03); box-shadow: none; }
+  }
+  @keyframes stampIn {
+    0% { transform: scale(3) rotate(-15deg); opacity: 0; }
+    50% { transform: scale(.9) rotate(3deg); opacity: 1; }
+    100% { transform: scale(1) rotate(0); opacity: 1; }
+  }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    10%,90% { transform: translateX(-4px); }
+    20%,80% { transform: translateX(4px); }
+    30%,50%,70% { transform: translateX(-6px); }
+    40%,60% { transform: translateX(6px); }
+  }
+  @keyframes blinkAnim { 0%,100% { opacity:1; } 50% { opacity:0; } }
+  @keyframes sirenPulse {
+    0%,100% { background: rgba(239,68,68,.2); }
+    50% { background: rgba(239,68,68,.05); }
+  }
+  @keyframes slideDown {
+    from { transform: translateY(-100%); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes bounce {
+    0%,100% { transform: translateY(0); }
+    50% { transform: translateY(-15px); }
+  }
 
-    .btn-neon {
-      position: relative; padding: .875rem 2rem; border-radius: .75rem;
-      font-family: 'Orbitron', sans-serif; font-weight: 700; letter-spacing: .05em;
-      transition: all .3s ease; cursor: pointer; border: none; overflow: hidden;
-    }
-    .btn-neon::before {
-      content: ''; position: absolute; inset: 0;
-      background: linear-gradient(45deg, transparent 30%, rgba(255,255,255,.1) 50%, transparent 70%);
-      transform: translateX(-100%); transition: transform .5s ease;
-    }
-    .btn-neon:hover::before { transform: translateX(100%); }
-    .btn-cyan { background: linear-gradient(135deg,#0891b2,#06b6d4); color: #fff; box-shadow: 0 0 15px rgba(6,182,212,.5),0 4px 15px rgba(0,0,0,.3); }
-    .btn-cyan:hover { box-shadow: 0 0 25px rgba(6,182,212,.8),0 6px 20px rgba(0,0,0,.4); transform: translateY(-2px); }
-    .btn-red { background: linear-gradient(135deg,#dc2626,#ef4444); color: #fff; box-shadow: 0 0 15px rgba(239,68,68,.5),0 4px 15px rgba(0,0,0,.3); }
-    .btn-red:hover { box-shadow: 0 0 25px rgba(239,68,68,.8),0 6px 20px rgba(0,0,0,.4); transform: translateY(-2px); }
-    .btn-amber { background: linear-gradient(135deg,#d97706,#f59e0b); color: #000; box-shadow: 0 0 15px rgba(245,158,11,.5),0 4px 15px rgba(0,0,0,.3); }
-    .btn-amber:hover { box-shadow: 0 0 25px rgba(245,158,11,.8); transform: translateY(-2px); }
-    .btn-green { background: linear-gradient(135deg,#16a34a,#22c55e); color: #fff; box-shadow: 0 0 15px rgba(34,197,94,.5),0 4px 15px rgba(0,0,0,.3); }
-    .btn-green:hover { box-shadow: 0 0 25px rgba(34,197,94,.8); transform: translateY(-2px); }
+  .glitch-text { position: relative; animation: glitch 3s infinite; }
+  .glitch-text::before, .glitch-text::after {
+    content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+  }
+  .glitch-text::before { color: #ff0040; animation: glitch 2s infinite; clip-path: inset(30% 0 50% 0); transform: translate(-1px,-1px); }
+  .glitch-text::after  { color: #00e5ff; animation: glitch 2.5s infinite; clip-path: inset(60% 0 15% 0); transform: translate(1px,1px); }
 
-    .card-medical {
-      background: linear-gradient(135deg,rgba(15,22,40,.9),rgba(20,29,56,.9));
-      border: 1px solid rgba(6,182,212,.2); border-radius: 1rem; padding: 1.5rem;
-      position: relative; overflow: hidden; transition: all .3s ease;
-    }
-    .card-medical:hover { border-color: rgba(6,182,212,.5); box-shadow: 0 0 20px rgba(6,182,212,.2); transform: translateY(-3px); }
-    .card-medical::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
-      background: linear-gradient(90deg,transparent,#06b6d4,transparent);
-    }
-    .card-complete { border-color: rgba(34,197,94,.5) !important; }
-    .card-complete::before { background: linear-gradient(90deg,transparent,#22c55e,transparent) !important; }
+  .alert-blink { animation: alertBlink 1.2s infinite; }
+  .shake { animation: shake .5s; }
+  .siren-bar { animation: sirenPulse .8s infinite; }
+  .stamp-animate { animation: stampIn .6s cubic-bezier(.175,.885,.32,1.275) forwards; }
 
-    .modal-backdrop {
-      position: fixed; inset: 0; background: rgba(0,0,0,.85);
-      backdrop-filter: blur(4px); z-index: 100;
-      display: flex; align-items: center; justify-content: center; padding: 1rem;
-    }
-    .modal-content {
-      background: linear-gradient(135deg,#0f1628,#141d38);
-      border: 1px solid rgba(6,182,212,.3); border-radius: 1.25rem;
-      width: 100%; max-width: 640px; max-height: 90vh; overflow-y: auto;
-      position: relative; box-shadow: 0 0 40px rgba(6,182,212,.2),0 20px 60px rgba(0,0,0,.6);
-    }
-    .stamp-slot {
-      width: 72px; height: 72px; border-radius: 50%;
-      border: 2px dashed rgba(100,116,139,.4); background: rgba(15,22,40,.6);
-      display: flex; flex-direction: column; align-items: center; justify-content: center;
-      font-size: 1.5rem; transition: all .3s ease;
-    }
-    .stamp-slot.active {
-      border: 2px solid #22c55e; background: rgba(34,197,94,.1);
-      box-shadow: 0 0 15px rgba(34,197,94,.4); animation: stampIn .5s cubic-bezier(.36,.07,.19,.97);
-    }
-    .stamp-label { font-size: .45rem; font-family: 'Orbitron', sans-serif; color: #64748b; margin-top: 2px; text-align: center; }
-    .stamp-slot.active .stamp-label { color: #22c55e; }
+  .card-medical {
+    background: rgba(11,15,25,0.85);
+    border: 1px solid rgba(6,182,212,0.25);
+    border-radius: 16px;
+    padding: 1.25rem;
+    backdrop-filter: blur(12px);
+    transition: all .25s ease;
+  }
+  .card-medical:hover {
+    border-color: rgba(6,182,212,0.5);
+    box-shadow: 0 0 24px rgba(6,182,212,0.12);
+  }
+  .btn-neon {
+    position: relative; overflow: hidden; font-weight: 700;
+    letter-spacing: .05em; transition: all .2s ease;
+    border-radius: 10px; cursor: pointer;
+  }
+  .btn-neon:hover { transform: translateY(-1px); }
+  .btn-neon:active { transform: translateY(1px); }
+  .btn-red { background: linear-gradient(135deg,#dc2626,#991b1b); color: #fff; border: 1px solid #ef4444; box-shadow: 0 0 15px rgba(239,68,68,.3); }
+  .btn-red:hover { box-shadow: 0 0 25px rgba(239,68,68,.6); }
+  .btn-cyan { background: linear-gradient(135deg,#0891b2,#0e7490); color: #fff; border: 1px solid #06b6d4; box-shadow: 0 0 15px rgba(6,182,212,.3); }
+  .btn-cyan:hover { box-shadow: 0 0 25px rgba(6,182,212,.6); }
+  .btn-amber { background: linear-gradient(135deg,#d97706,#b45309); color: #fff; border: 1px solid #f59e0b; box-shadow: 0 0 15px rgba(245,158,11,.3); }
+  .btn-amber:hover { box-shadow: 0 0 25px rgba(245,158,11,.6); }
+  .btn-green { background: linear-gradient(135deg,#16a34a,#15803d); color: #fff; border: 1px solid #22c55e; box-shadow: 0 0 15px rgba(34,197,94,.3); }
+  .btn-green:hover { box-shadow: 0 0 25px rgba(34,197,94,.6); }
 
-    .hint-content { max-height: 0; overflow: hidden; transition: max-height .4s ease; }
-    .hint-content.open { max-height: 500px; }
+  .code-input {
+    background: #0f1628; border: 2px solid rgba(6,182,212,.4);
+    border-radius: 12px; color: #fff; font-family: 'Syne', 'Orbitron', monospace;
+    font-size: 1.25rem; font-weight: 800; letter-spacing: .2em;
+    text-align: center; width: 100%; padding: .85rem 1rem;
+    outline: none; transition: all .2s;
+  }
+  .code-input:focus { border-color: #06b6d4; box-shadow: 0 0 20px rgba(6,182,212,.4); }
 
-    .code-input {
-      background: rgba(6,182,212,.05); border: 2px solid rgba(6,182,212,.3);
-      border-radius: .75rem; padding: .75rem 1rem; color: #06b6d4;
-      font-family: 'Orbitron', sans-serif; font-size: 1.5rem;
-      letter-spacing: .2em; text-align: center; width: 100%; outline: none;
-      transition: border-color .3s,box-shadow .3s;
+  .modal-backdrop {
+    position: fixed; inset: 0; background: rgba(3,5,10,.85);
+    backdrop-filter: blur(8px); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+  }
+  .modal-backdrop.hidden { display: none !important; }
+  .modal-content {
+    background: #0b0f19; border: 1px solid rgba(6,182,212,.35);
+    border-radius: 20px; max-width: 600px; width: 100%;
+    max-height: 90vh; overflow-y: auto; box-shadow: 0 0 40px rgba(6,182,212,.15);
+  }
+  .hint-content { max-height: 0; overflow: hidden; transition: max-height .35s ease; }
+  .hint-content.open { max-height: 600px; }
+
+  .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 14px; }
+  .grid-overlay {
+    background-image: linear-gradient(rgba(6,182,212,.03) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(6,182,212,.03) 1px, transparent 1px);
+    background-size: 40px 40px; position: absolute; inset: 0; pointer-events: none;
+  }
+  .vital-bar { height: 4px; border-radius: 2px; background: rgba(255,255,255,.1); overflow: hidden; }
+  .vital-bar-fill { height: 100%; border-radius: 2px; transition: width .5s ease; }
+
+  /* 탭 네비게이션 스타일 */
+  .tab-btn {
+    padding: 0.65rem 1.25rem;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .tab-btn.active {
+    background: rgba(6, 182, 212, 0.18);
+    border-color: rgba(6, 182, 212, 0.6);
+    color: #38bdf8;
+    box-shadow: 0 0 15px rgba(6, 182, 212, 0.2);
+  }
+  .tab-btn:not(.active) {
+    background: rgba(15, 22, 40, 0.6);
+    color: #94a3b8;
+    border-color: rgba(51, 65, 85, 0.5);
+  }
+  .tab-btn:not(.active):hover {
+    background: rgba(30, 41, 59, 0.7);
+    color: #e2e8f0;
+  }
+
+  /* 푸터 스타일 (MINARI STUDIO 고정 푸터) */
+  .footer {
+    margin-top: auto;
+    width: 100%;
+    background: rgba(11, 15, 25, 0.95);
+    border-top: 1px solid rgba(6, 182, 212, 0.2);
+    padding: 1.25rem 1rem;
+    font-family: 'Pretendard', sans-serif;
+    color: #94a3b8;
+    font-size: 0.8rem;
+    z-index: 20;
+  }
+  .footer-in {
+    max-width: 72rem;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    text-align: center;
+  }
+  @media (min-width: 640px) {
+    .footer-in {
+      flex-direction: row;
+      justify-content: space-between;
+      text-align: left;
     }
-    .code-input:focus { border-color: #06b6d4; box-shadow: 0 0 15px rgba(6,182,212,.3); }
-    .code-input.err-shake { border-color: #ef4444; box-shadow: 0 0 15px rgba(239,68,68,.3); animation: shake .5s cubic-bezier(.36,.07,.19,.97); }
-
-    .vital-bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,.1); overflow: hidden; }
-    .vital-bar-fill { height: 100%; border-radius: 3px; transition: width 1.5s ease, background-color 1s ease; }
-
-    .status-badge { display: inline-flex; align-items: center; gap: .25rem; padding: .2rem .6rem; border-radius: 999px; font-size: .7rem; font-weight: 700; letter-spacing: .05em; }
-    .badge-danger { background: rgba(239,68,68,.2); color: #ef4444; border: 1px solid rgba(239,68,68,.3); }
-    .badge-success { background: rgba(34,197,94,.2); color: #22c55e; border: 1px solid rgba(34,197,94,.3); }
-
-    .mission-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 1rem; }
-    @media(max-width:640px) {
-      .mission-grid { grid-template-columns: 1fr; }
-      .stamp-slot { width: 60px; height: 60px; font-size: 1.2rem; }
-    }
-
-    .ctable { width: 100%; border-collapse: collapse; font-size: .8rem; }
-    .ctable th { background: rgba(6,182,212,.1); color: #06b6d4; padding: .5rem; text-align: center; border: 1px solid rgba(6,182,212,.2); }
-    .ctable td { padding: .4rem .5rem; border: 1px solid rgba(6,182,212,.1); text-align: center; color: #cbd5e1; }
-    .ctable tr:hover td { background: rgba(6,182,212,.05); }
-    .hl { color: #f59e0b; font-weight: bold; }
-
-    .video-container {
-      position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden;
-      border-radius: .75rem; border: 2px solid rgba(6,182,212,.3); background: #000;
-    }
-    .video-container iframe, .video-container video {
-      position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: none;
-    }
-
-    .maze-box {
-      background: rgba(6,182,212,.05); border: 1px solid rgba(6,182,212,.2);
-      border-radius: .75rem; padding: 1rem; font-family: 'Courier New', monospace;
-      font-size: .78rem; line-height: 1.9; color: #94a3b8; overflow-x: auto; white-space: pre;
-    }
-    .teacher-card { background: rgba(15,22,40,.8); border: 1px solid rgba(6,182,212,.15); border-radius: .75rem; padding: .875rem; }
-    .certificate { background: linear-gradient(135deg,#0f1628,#1a2540); border: 3px solid #f59e0b; border-radius: 1.5rem; }
-    .grid-overlay {
-      position: absolute; inset: 0; opacity: .05; pointer-events: none;
-      background-image: linear-gradient(rgba(6,182,212,.5) 1px,transparent 1px),linear-gradient(90deg,rgba(6,182,212,.5) 1px,transparent 1px);
-      background-size: 30px 30px;
-    }
-    #fw-canvas { position: fixed; inset: 0; z-index: 200; pointer-events: none; display: none; }
-    ::-webkit-scrollbar { width: 6px; }
-    ::-webkit-scrollbar-track { background: #0b0f19; }
-    ::-webkit-scrollbar-thumb { background: rgba(6,182,212,.4); border-radius: 3px; }
-  </style>
+  }
+  .f-brand {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .f-wm {
+    font-weight: 800;
+    color: #38bdf8;
+    letter-spacing: 0.05em;
+    font-size: 0.85rem;
+  }
+  .f-tag {
+    color: #64748b;
+    font-size: 0.75rem;
+    margin-left: 0.5rem;
+  }
+  .f-legal {
+    color: #64748b;
+    font-size: 0.7rem;
+    line-height: 1.4;
+  }
+  .f-legal .sep {
+    margin: 0 0.4rem;
+    color: #475569;
+  }
+  @media print {
+    .no-print { display: none !important; }
+  }
+</style>
   <script src="hints.js"></script>
 </head>
 <body class="bg-[#060912]">
@@ -285,8 +327,8 @@
 
     <div class="text-center mb-6">
       <div class="glitch-text orb text-3xl sm:text-5xl font-black text-white mb-1" data-text="GOLDEN TIME">GOLDEN TIME</div>
-      <div class="text-4xl sm:text-6xl font-black mb-2" style="background:linear-gradient(135deg,#06b6d4,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">메디컬센터</div>
-      <div class="text-slate-400 font-semibold mb-3">환자 K-군을 치료하라!</div>
+      <div class="title-medical text-3xl sm:text-5xl font-black mb-2" style="font-family:'Syne','Outfit','Pretendard',sans-serif;letter-spacing:0.12em;background:linear-gradient(135deg,#22d3ee,#f59e0b);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">MEDICAL CENTER</div>
+      <div class="text-slate-300 font-bold mb-3 tracking-wide text-sm sm:text-base">환자 K-군 응급 소생 작전 : 골든타임 35분</div>
       <div class="orb text-5xl sm:text-7xl font-black text-red-500 blink" style="text-shadow:0 0 30px rgba(239,68,68,.7)">35:00</div>
     </div>
 
@@ -336,6 +378,22 @@
     </div>
     <button onclick="openTeacherLogin()" class="mt-4 text-slate-700 hover:text-slate-500 text-xs transition-colors">🔒 관리자</button>
   </div>
+  
+  <footer class="footer no-print">
+    <div class="footer-in">
+      <div class="f-brand">
+        <div>
+          <span class="f-wm">MINARI STUDIO</span>
+          <span class="f-tag">Classroom Tools for Teachers · 골든타임 메디컬 센터 방탈출</span>
+        </div>
+      </div>
+      <div class="f-legal">
+        © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.1<br>
+        본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+      </div>
+    </div>
+  </footer>
+
 </div>
 
 <!-- ===== SCREEN 2: 인트로 ===== -->
@@ -371,6 +429,22 @@
       </button>
     </div>
   </div>
+  
+  <footer class="footer no-print">
+    <div class="footer-in">
+      <div class="f-brand">
+        <div>
+          <span class="f-wm">MINARI STUDIO</span>
+          <span class="f-tag">Classroom Tools for Teachers · 골든타임 메디컬 센터 방탈출</span>
+        </div>
+      </div>
+      <div class="f-legal">
+        © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.1<br>
+        본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+      </div>
+    </div>
+  </footer>
+
 </div>
 
 <!-- ===== SCREEN 3: 메인 대시보드 ===== -->
@@ -497,6 +571,22 @@
         <div class="h-8"></div>
       </div>
     </main>
+    
+  <footer class="footer no-print">
+    <div class="footer-in">
+      <div class="f-brand">
+        <div>
+          <span class="f-wm">MINARI STUDIO</span>
+          <span class="f-tag">Classroom Tools for Teachers · 골든타임 메디컬 센터 방탈출</span>
+        </div>
+      </div>
+      <div class="f-legal">
+        © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.1<br>
+        본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+      </div>
+    </div>
+  </footer>
+
   </div>
 </div>
 
@@ -506,165 +596,133 @@
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 01 — 소화기계</div>
-          <h2 class="text-white font-bold text-lg">🧪 소화관 탐사 미로 분석</h2>
+          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 01 — 소화기내과</div>
+          <h2 class="text-white font-bold text-lg">🧪 소화관 탐사 미로 분석 차트</h2>
         </div>
         <button onclick="closeModal('modal-1')" class="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-all">✕</button>
       </div>
+
+      <!-- 환자 상태 브리핑 -->
       <div class="bg-[#0f1628]/60 rounded-xl p-4 mb-4 border border-cyan-900/30">
-        <p class="text-slate-300 text-sm leading-relaxed">K-군의 소화관이 마비되어 <span class="text-amber-400 font-bold">소화효소(펩신)</span>가 분비되지 않습니다.<br>아래 소화관 경로 미로(J1~J6)를 탐사하여 통과(✓) 경로의 알파벳을 추출하거나,<br>해당 효소 이름을 입력하세요.</p>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          K-군의 소화관 운동이 전면 마비되었습니다. 배부된 <span class="text-amber-400 font-bold">환자 차트 미션지</span>의 소화관 탐사 미로를 분석하여 올바른 치료 암호를 해독하십시오.
+        </p>
       </div>
 
-      <div class="maze-box mb-4">【소화관 구조 탐사 차트】
-입 → 식도 → 위 → 소장 → 대장 → 항문
+      <!-- 탭 버튼 헤더 -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchChartTab(1, 'code')" id="tab-btn-1-code" class="tab-btn active flex-1">💉 치료 코드 입력</button>
+        <button onclick="switchChartTab(1, 'hint')" id="tab-btn-1-hint" class="tab-btn flex-1">💡 힌트 열람</button>
+      </div>
 
-<span style="color:#f59e0b">J1 [위]      </span>왼쪽(✗막힘) / <span style="color:#22c55e;font-weight:bold">오른쪽(✓통과) → 추출: V</span>
-<span style="color:#f59e0b">J2 [위]      </span><span style="color:#22c55e;font-weight:bold">위쪽(✓통과) → 추출: P</span> / 아래쪽(✗막힘)
-<span style="color:#f59e0b">J3 [십이지장] </span>왼쪽(✗막힘) / <span style="color:#22c55e;font-weight:bold">오른쪽(✓통과) → 추출: Q</span>
-<span style="color:#f59e0b">J4 [소장]    </span><span style="color:#22c55e;font-weight:bold">위쪽(✓통과) → 추출: T</span> / 아래쪽(✗막힘)
-<span style="color:#f59e0b">J5 [회장]    </span>왼쪽(✗막힘) / <span style="color:#22c55e;font-weight:bold">오른쪽(✓통과) → 추출: L</span>
-<span style="color:#f59e0b">J6 [대장]    </span><span style="color:#22c55e;font-weight:bold">위쪽(✓통과) → 추출: S</span> / 아래쪽(✗막힘)
+      <!-- [TAB 1: 코드 입력] -->
+      <div id="tab-content-1-code" class="space-y-4">
+        <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
+          <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (영문 코드 또는 효소명)</label>
+          <input id="ci1" type="text" class="code-input mb-3 uppercase" placeholder="치료 암호 입력..." maxlength="10" onkeydown="if(event.key==='Enter')submitCode(1)">
+          <div id="cm1" class="text-center text-sm mb-3 hidden"></div>
+          <button onclick="submitCode(1)" class="btn-neon btn-cyan w-full py-3.5 text-sm font-bold">💉 치료제 주입 (코드 전송)</button>
+        </div>
+      </div>
 
-추출 순서: <span style="color:#22c55e;font-weight:bold">V → P → Q → T → L → S</span>
-암호: <span style="color:#22c55e;font-weight:bold">VPQTLS</span>  또는  한글 효소명 입력 가능</div>
-
-      <div id="hints-chart1" class="space-y-2 mb-4"></div>
-
-      <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
-        <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 입력</label>
-        <input id="ci1" type="text" class="code-input mb-3" placeholder="VPQTLS 또는 펩신" maxlength="10" onkeydown="if(event.key==='Enter')submitCode(1)">
-        <div id="cm1" class="text-center text-sm mb-3 hidden"></div>
-        <button onclick="submitCode(1)" class="btn-neon btn-cyan w-full py-3 text-sm">💉 치료제 주입 (코드 전송)</button>
+      <!-- [TAB 2: 힌트 열람] -->
+      <div id="tab-content-1-hint" class="hidden space-y-3">
+        <div class="p-3 bg-cyan-950/20 border border-cyan-800/30 rounded-xl text-xs text-cyan-300">
+          ℹ️ 미션지를 풀기 어려울 때 단계별 힌트를 참고하세요. 정답은 직접 노출되지 않습니다.
+        </div>
+        <div id="hints-chart1" class="space-y-2"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== MODAL: CHART 02 순환기 ===== -->
+<!-- ===== MODAL: CHART 02 순환 ===== -->
 <div id="modal-2" class="modal-backdrop hidden">
   <div class="modal-content">
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 02 — 순환기계</div>
-          <h2 class="text-white font-bold text-lg">🫀 혈류 순환 수치 분석</h2>
+          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 02 — 순환기내과</div>
+          <h2 class="text-white font-bold text-lg">🫀 심장 혈류 순환 수치 차트</h2>
         </div>
         <button onclick="closeModal('modal-2')" class="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-all">✕</button>
       </div>
+
+      <!-- 환자 상태 브리핑 -->
       <div class="bg-[#0f1628]/60 rounded-xl p-4 mb-4 border border-red-900/30">
-        <p class="text-slate-300 text-sm">심장 혈류 정체! <span class="text-amber-400 font-bold">온몸 순환 수치표</span>의 <span class="text-cyan-400 font-bold">홀수</span> 합산 + <span class="text-amber-400 font-bold">허파 순환 체크포인트</span> 누적 = 4자리 코드</p>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          심장 박출량 급감 및 혈류 정체! <span class="text-amber-400 font-bold">환자 차트 미션지</span>의 온몸 순환과 허파 순환 경로를 분석하여 4자리 치료 코드를 해독하십시오.
+        </p>
       </div>
-      <div class="mb-4 space-y-3">
-        <div>
-          <h4 class="text-amber-400 font-bold text-sm mb-2">【온몸(체계) 순환 혈압 수치표】</h4>
-          <div class="overflow-x-auto">
-            <table class="ctable">
-              <thead><tr><th>혈관 구간</th><th>수축기(mmHg)</th><th>이완기(mmHg)</th><th>홀수 여부</th></tr></thead>
-              <tbody>
-                <tr><td>대동맥 출구</td><td class="hl">17</td><td>12</td><td class="text-green-400">✓ 홀수(17)</td></tr>
-                <tr><td>하행 대동맥</td><td>24</td><td class="hl">3</td><td class="text-green-400">✓ 홀수(3)</td></tr>
-                <tr><td>복부 동맥</td><td class="hl">11</td><td>8</td><td class="text-green-400">✓ 홀수(11)</td></tr>
-                <tr><td>말초 모세혈관</td><td>6</td><td>4</td><td class="text-slate-500">짝수(제외)</td></tr>
-                <tr><td>대정맥 유입</td><td class="hl">7</td><td>2</td><td class="text-green-400">✓ 홀수(7)</td></tr>
-                <tr><td>관상동맥</td><td>10</td><td class="hl">3</td><td class="text-green-400">✓ 홀수(3)</td></tr>
-              </tbody>
-              <tfoot><tr style="background:rgba(245,158,11,.1)"><td colspan="3" style="color:#f59e0b;font-weight:bold;padding:.5rem">홀수 합산 결과</td><td style="color:#f59e0b;font-weight:bold;padding:.5rem">17+3+11+7+3 = <span class="text-white">41</span></td></tr></tfoot>
-            </table>
-          </div>
-        </div>
-        <div>
-          <h4 class="text-cyan-400 font-bold text-sm mb-2">【허파(폐) 순환 체크포인트 누적】</h4>
-          <div class="overflow-x-auto">
-            <table class="ctable">
-              <thead><tr><th>체크포인트</th><th>위치</th><th>누적값</th></tr></thead>
-              <tbody>
-                <tr><td>CP-1</td><td>우심방 → 우심실</td><td class="hl">+8</td></tr>
-                <tr><td>CP-2</td><td>폐동맥 분기</td><td class="hl">+6</td></tr>
-                <tr><td>CP-3</td><td>폐포 모세혈관</td><td class="hl">+11</td></tr>
-                <tr><td>CP-4</td><td>폐정맥 → 좌심방</td><td class="hl">+4</td></tr>
-              </tbody>
-              <tfoot><tr style="background:rgba(6,182,212,.1)"><td colspan="2" style="color:#06b6d4;font-weight:bold;padding:.5rem">허파 순환 누적 합계</td><td style="color:#06b6d4;font-weight:bold;padding:.5rem">8+6+11+4 = <span class="text-white">29</span></td></tr></tfoot>
-            </table>
-          </div>
-        </div>
-        <div class="p-3 rounded-xl bg-amber-900/10 border border-amber-900/30 text-sm">
-          <p class="text-amber-400 font-bold mb-1">📌 치료 암호 조합:</p>
-          <p class="text-slate-300">온몸 순환 홀수합(41) + 허파 순환 누적(29) = <span class="text-white font-bold orb text-lg">4129</span></p>
+
+      <!-- 탭 버튼 헤더 -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchChartTab(2, 'code')" id="tab-btn-2-code" class="tab-btn active flex-1">💉 치료 코드 입력</button>
+        <button onclick="switchChartTab(2, 'hint')" id="tab-btn-2-hint" class="tab-btn flex-1">💡 힌트 열람</button>
+      </div>
+
+      <!-- [TAB 1: 코드 입력] -->
+      <div id="tab-content-2-code" class="space-y-4">
+        <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
+          <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리 숫자)</label>
+          <input id="ci2" type="text" class="code-input mb-3" placeholder="4자리 코드 입력..." maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(2)">
+          <div id="cm2" class="text-center text-sm mb-3 hidden"></div>
+          <button onclick="submitCode(2)" class="btn-neon btn-cyan w-full py-3.5 text-sm font-bold">💉 치료제 주입 (코드 전송)</button>
         </div>
       </div>
-      <div id="hints-chart2" class="space-y-2 mb-4"></div>
-      <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
-        <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리)</label>
-        <input id="ci2" type="text" class="code-input mb-3" placeholder="4129" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(2)">
-        <div id="cm2" class="text-center text-sm mb-3 hidden"></div>
-        <button onclick="submitCode(2)" class="btn-neon btn-cyan w-full py-3 text-sm">💉 치료제 주입 (코드 전송)</button>
+
+      <!-- [TAB 2: 힌트 열람] -->
+      <div id="tab-content-2-hint" class="hidden space-y-3">
+        <div class="p-3 bg-cyan-950/20 border border-cyan-800/30 rounded-xl text-xs text-cyan-300">
+          ℹ️ 미션지를 풀기 어려울 때 단계별 힌트를 참고하세요. 정답은 직접 노출되지 않습니다.
+        </div>
+        <div id="hints-chart2" class="space-y-2"></div>
       </div>
     </div>
   </div>
 </div>
 
-<!-- ===== MODAL: CHART 03 호흡기 ===== -->
+<!-- ===== MODAL: CHART 03 호흡 ===== -->
 <div id="modal-3" class="modal-backdrop hidden">
   <div class="modal-content">
     <div class="p-5">
       <div class="flex items-center justify-between mb-4">
         <div>
-          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 03 — 호흡기계</div>
-          <h2 class="text-white font-bold text-lg">🫁 폐포 기체 교환 분석</h2>
+          <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 03 — 호흡기내과</div>
+          <h2 class="text-white font-bold text-lg">🫁 폐포 기체 교환 분석 차트</h2>
         </div>
         <button onclick="closeModal('modal-3')" class="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-all">✕</button>
       </div>
+
+      <!-- 환자 상태 브리핑 -->
       <div class="bg-[#0f1628]/60 rounded-xl p-4 mb-4 border border-blue-900/30">
-        <p class="text-slate-300 text-sm">폐포의 <span class="text-cyan-400 font-bold">확산(기체 교환)</span> 기능 마비! <span class="text-amber-400 font-bold">확산 생체 펄스 차트</span>와 <span class="text-purple-400 font-bold">분자식 첨자</span>를 분석해 4자리 코드를 추출하세요.</p>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          폐포의 확산(기체 교환) 기능 저하로 산소포화도 급락! <span class="text-amber-400 font-bold">환자 차트 미션지</span>의 생체 파형과 분자식 첨자를 분석하여 4자리 코드를 추출하십시오.
+        </p>
       </div>
-      <div class="mb-4 space-y-3">
+
+      <!-- 탭 버튼 헤더 -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchChartTab(3, 'code')" id="tab-btn-3-code" class="tab-btn active flex-1">💉 치료 코드 입력</button>
+        <button onclick="switchChartTab(3, 'hint')" id="tab-btn-3-hint" class="tab-btn flex-1">💡 힌트 열람</button>
+      </div>
+
+      <!-- [TAB 1: 코드 입력] -->
+      <div id="tab-content-3-code" class="space-y-4">
         <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
-          <h4 class="text-cyan-400 font-bold text-sm mb-3">【확산 키워드 생체 펄스 스캔】</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="bg-[#0b0f19]/60 rounded-lg p-3 border border-cyan-900/30 text-center">
-              <div class="text-slate-500 text-xs mb-1">키워드 감지</div>
-              <div class="text-white font-bold text-xl orb">"확" <span class="text-cyan-400">×8</span></div>
-              <div class="text-slate-400 text-xs mt-1">확산 관련 신호 펄스</div>
-            </div>
-            <div class="bg-[#0b0f19]/60 rounded-lg p-3 border border-amber-900/30 text-center">
-              <div class="text-slate-500 text-xs mb-1">키워드 감지</div>
-              <div class="text-white font-bold text-xl orb">"산" <span class="text-amber-400">×5</span></div>
-              <div class="text-slate-400 text-xs mt-1">산소 관련 신호 펄스</div>
-            </div>
-          </div>
-          <div class="mt-3 p-2 rounded-lg bg-green-900/10 border border-green-900/20 text-xs text-slate-400 text-center">
-            앞 두 자리: <span class="text-green-400 font-bold orb text-base ml-1">85</span>
-          </div>
-        </div>
-        <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-purple-900/20">
-          <h4 class="text-purple-400 font-bold text-sm mb-3">【기체 분자식 첨자 분석】</h4>
-          <div class="grid grid-cols-2 gap-3">
-            <div class="bg-[#0b0f19]/60 rounded-lg p-3 border border-cyan-900/30 text-center">
-              <div class="text-slate-400 text-xs mb-1">산소 분자식</div>
-              <div class="text-4xl font-black text-white" style="font-family:serif">O<sub class="text-cyan-400" style="font-size:1.5rem">2</sub></div>
-              <div class="text-cyan-400 text-xs mt-1">첨자: <span class="font-bold orb">2</span></div>
-            </div>
-            <div class="bg-[#0b0f19]/60 rounded-lg p-3 border border-amber-900/30 text-center">
-              <div class="text-slate-400 text-xs mb-1">이산화탄소 분자식</div>
-              <div class="text-4xl font-black text-white" style="font-family:serif">CO<sub class="text-amber-400" style="font-size:1.5rem">2</sub></div>
-              <div class="text-amber-400 text-xs mt-1">첨자: <span class="font-bold orb">2</span></div>
-            </div>
-          </div>
-          <div class="mt-3 p-2 rounded-lg bg-green-900/10 border border-green-900/20 text-xs text-slate-400 text-center">
-            뒤 두 자리: <span class="text-green-400 font-bold orb text-base ml-1">22</span>
-          </div>
-        </div>
-        <div class="p-3 rounded-xl bg-amber-900/10 border border-amber-900/30 text-sm">
-          <p class="text-amber-400 font-bold mb-1">📌 치료 암호 조합:</p>
-          <p class="text-slate-300">"확"(8) + "산"(5) + O₂첨자(2) + CO₂첨자(2) = <span class="text-white font-bold orb text-lg">8522</span></p>
+          <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리 숫자)</label>
+          <input id="ci3" type="text" class="code-input mb-3" placeholder="4자리 코드 입력..." maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(3)">
+          <div id="cm3" class="text-center text-sm mb-3 hidden"></div>
+          <button onclick="submitCode(3)" class="btn-neon btn-cyan w-full py-3.5 text-sm font-bold">💉 치료제 주입 (코드 전송)</button>
         </div>
       </div>
-      <div id="hints-chart3" class="space-y-2 mb-4"></div>
-      <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
-        <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리)</label>
-        <input id="ci3" type="text" class="code-input mb-3" placeholder="8522" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(3)">
-        <div id="cm3" class="text-center text-sm mb-3 hidden"></div>
-        <button onclick="submitCode(3)" class="btn-neon btn-cyan w-full py-3 text-sm">💉 치료제 주입 (코드 전송)</button>
+
+      <!-- [TAB 2: 힌트 열람] -->
+      <div id="tab-content-3-hint" class="hidden space-y-3">
+        <div class="p-3 bg-cyan-950/20 border border-cyan-800/30 rounded-xl text-xs text-cyan-300">
+          ℹ️ 미션지를 풀기 어려울 때 단계별 힌트를 참고하세요. 정답은 직접 노출되지 않습니다.
+        </div>
+        <div id="hints-chart3" class="space-y-2"></div>
       </div>
     </div>
   </div>
@@ -677,38 +735,40 @@
       <div class="flex items-center justify-between mb-4">
         <div>
           <div class="orb text-cyan-400 text-xs tracking-wider mb-1">CHART 04 — 신장내과</div>
-          <h2 class="text-white font-bold text-lg">🫘 소변 정밀 분석 차트</h2>
+          <h2 class="text-white font-bold text-lg">🫘 콩팥 소변 정밀 분석 차트</h2>
         </div>
         <button onclick="closeModal('modal-4')" class="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-all">✕</button>
       </div>
+
+      <!-- 환자 상태 브리핑 -->
       <div class="bg-[#0f1628]/60 rounded-xl p-4 mb-4 border border-purple-900/30">
-        <p class="text-slate-300 text-sm">사구체 여과망 파손! <span class="text-amber-400 font-bold">소변 정밀 분석표</span>에서 <span class="text-cyan-400 font-bold">정상 배출 물질</span>의 <span class="text-red-400 font-bold">홀수 코드</span>를 추출하세요.</p>
+        <p class="text-slate-300 text-sm leading-relaxed">
+          사구체 여과망 및 배설 기능 비정상! <span class="text-amber-400 font-bold">환자 차트 미션지</span>의 소변 정밀 분석표를 검토하여 정상 배출 물질의 홀수 코드를 추출하십시오.
+        </p>
       </div>
-      <div class="mb-4">
-        <h4 class="text-purple-400 font-bold text-sm mb-2">【K-군 소변 정밀 분석표】</h4>
-        <div class="overflow-x-auto">
-          <table class="ctable">
-            <thead><tr><th>물질명</th><th>혈액 함량</th><th>여과액</th><th>소변 함량</th><th>배출?</th><th>홀수 코드</th></tr></thead>
-            <tbody>
-              <tr><td class="text-amber-400 font-bold">요소</td><td>0.03%</td><td>0.03%</td><td class="text-green-400">2.0%</td><td class="text-green-400">✓ 정상 배출</td><td class="text-white font-bold orb">37</td></tr>
-              <tr><td>포도당</td><td>0.1%</td><td>0.1%</td><td class="text-red-400">0%(재흡수)</td><td class="text-red-400">✗ 재흡수</td><td class="text-slate-500">제외</td></tr>
-              <tr><td>단백질</td><td>8%</td><td class="text-red-400">0%</td><td class="text-red-400">0%</td><td class="text-red-400">✗ 여과안됨</td><td class="text-slate-500">제외</td></tr>
-              <tr><td class="text-cyan-400 font-bold">물(H₂O)</td><td>90%</td><td>90%</td><td class="text-green-400">95%</td><td class="text-green-400">✓ 정상 배출</td><td class="text-white font-bold orb">09</td></tr>
-              <tr><td>무기염류</td><td>0.9%</td><td>0.9%</td><td>1.5%</td><td class="text-amber-400">△ 일부재흡수</td><td class="text-slate-500">제외</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="mt-3 p-3 rounded-xl bg-amber-900/10 border border-amber-900/30 text-sm">
-          <p class="text-amber-400 font-bold mb-1">📌 치료 암호 조합:</p>
-          <p class="text-slate-300">정상 배출 홀수 코드: 요소(<span class="text-white font-bold">37</span>) + 물(<span class="text-white font-bold">09</span>) = <span class="text-green-400 font-bold orb text-lg">3709</span></p>
+
+      <!-- 탭 버튼 헤더 -->
+      <div class="flex gap-2 mb-4">
+        <button onclick="switchChartTab(4, 'code')" id="tab-btn-4-code" class="tab-btn active flex-1">💉 치료 코드 입력</button>
+        <button onclick="switchChartTab(4, 'hint')" id="tab-btn-4-hint" class="tab-btn flex-1">💡 힌트 열람</button>
+      </div>
+
+      <!-- [TAB 1: 코드 입력] -->
+      <div id="tab-content-4-code" class="space-y-4">
+        <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
+          <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리 숫자)</label>
+          <input id="ci4" type="text" class="code-input mb-3" placeholder="4자리 코드 입력..." maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(4)">
+          <div id="cm4" class="text-center text-sm mb-3 hidden"></div>
+          <button onclick="submitCode(4)" class="btn-neon btn-cyan w-full py-3.5 text-sm font-bold">💉 치료제 주입 (코드 전송)</button>
         </div>
       </div>
-      <div id="hints-chart4" class="space-y-2 mb-4"></div>
-      <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-cyan-900/20">
-        <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 치료 암호 (4자리)</label>
-        <input id="ci4" type="text" class="code-input mb-3" placeholder="3709" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitCode(4)">
-        <div id="cm4" class="text-center text-sm mb-3 hidden"></div>
-        <button onclick="submitCode(4)" class="btn-neon btn-cyan w-full py-3 text-sm">💉 치료제 주입 (코드 전송)</button>
+
+      <!-- [TAB 2: 힌트 열람] -->
+      <div id="tab-content-4-hint" class="hidden space-y-3">
+        <div class="p-3 bg-cyan-950/20 border border-cyan-800/30 rounded-xl text-xs text-cyan-300">
+          ℹ️ 미션지를 풀기 어려울 때 단계별 힌트를 참고하세요. 정답은 직접 노출되지 않습니다.
+        </div>
+        <div id="hints-chart4" class="space-y-2"></div>
       </div>
     </div>
   </div>
@@ -756,7 +816,7 @@
       </div>
       <div class="bg-[#0f1628]/40 rounded-xl p-4 border border-amber-900/20 mb-4">
         <label class="block text-slate-400 text-sm mb-2 font-bold">🔑 최종 보안 번호 (4자리)</label>
-        <input id="ci-final" type="text" class="code-input mb-3" placeholder="4자리 입력" maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitFinal()">
+        <input id="ci-final" type="text" class="code-input mb-3" placeholder="4자리 보안 번호..." maxlength="4" inputmode="numeric" onkeydown="if(event.key==='Enter')submitFinal()">
         <div id="cm-final" class="text-center text-sm mb-3 hidden"></div>
         <button onclick="submitFinal()" class="btn-neon btn-amber w-full py-4 text-base">🚀 최종 치료제 전량 주입!</button>
       </div>
@@ -1115,78 +1175,72 @@ document.addEventListener('click',()=>{if(!actx)actx=new(window.AudioContext||wi
 // ============================================================
 // 💡 [hints.js] 연동 힌트 동적 렌더링 시스템
 // ============================================================
+
 const DEFAULT_HINTS = {
   chart1: {
     step1: {
-      title: "💡 1단계 힌트: 소화효소란?",
+      title: "💡 문제풀이 힌트",
       lines: [
-        "• <span class=\"text-amber-400 font-bold\">위</span>에서 분비되는 대표 단백질 소화효소: <span class=\"text-yellow-400 font-bold\">펩신(pepsin)</span>",
-        "• 펩신은 음식물 속 <span class=\"text-cyan-400 font-bold\">단백질</span>을 더 작은 단위로 분해하는 소화효소입니다.",
-        "• 위액 속 <span class=\"text-red-400 font-bold\">염산(pH 1~2의 강산)</span>에 의해 활성화되어 살균과 소화를 돕습니다."
+        "• 환자 차트 미션지의 소화관 탐사 미로를 확인하세요.",
+        "• 각 분기점(J1~J6)마다 소화 효소 작용이 일어나는 정상 통과 경로(✓)를 따라가 보세요.",
+        "• 특히 위에서 분비되어 단백질을 분해하는 대표 소화 효소의 이름을 떠올려 보세요."
       ]
     },
     step2: {
-      title: "💡 2단계 힌트: 미로 풀이법",
+      title: "🔑 암호 힌트",
       lines: [
-        "• 미로의 각 분기점에서 막힌 길이 아닌 <span class=\"text-cyan-400 font-bold\">✓ 통과 경로</span>의 알파벳만 순서대로 추출하세요!",
-        "• 분기점 순서: J1(V) → J2(P) → J3(Q) → J4(T) → J5(L) → J6(S)",
-        "• 조합 결과: <span class=\"text-green-400 font-bold orb text-base\">VPQTLS</span> = 펩신의 치료 암호 코드",
-        "• ⚠️ 영문 <span class=\"text-green-400 font-bold\">VPQTLS</span> 또는 한글 <span class=\"text-green-400 font-bold\">펩신</span> 중 어느 것을 입력해도 정답 처리됩니다."
+        "• 통과한 분기점의 알파벳을 순서대로 수집하여 결합하세요.",
+        "• 해당 소화 효소의 한글 이름으로도 입력할 수 있습니다."
       ]
     }
   },
   chart2: {
     step1: {
-      title: "💡 1단계 힌트: 혈액 순환 경로",
+      title: "💡 문제풀이 힌트",
       lines: [
-        "• <span class=\"text-red-400 font-bold\">온몸 순환(체순환)</span>: 좌심실 → 대동맥 → 온몸의 모세혈관 → 대정맥 → 우심방",
-        "• <span class=\"text-cyan-400 font-bold\">허파 순환(폐순환)</span>: 우심실 → 폐동맥 → 폐의 모세혈관 → 폐정맥 → 좌심방",
-        "• 심장은 산소가 풍부한 동맥혈과 이산화탄소가 많은 정맥혈을 분리 펌핑하는 이중 순환 구조입니다."
+        "• 심장에서 나가는 온몸 순환(체순환)과 허파 순환(폐순환)의 경로를 확인하세요.",
+        "• 온몸 순환: 좌심실→대동맥→온몸→대정맥→우심방",
+        "• 허파 순환: 우심실→폐동맥→폐→폐정맥→좌심방"
       ]
     },
     step2: {
-      title: "💡 2단계 힌트: 코드 조합법",
+      title: "🔑 암호 힌트",
       lines: [
-        "• [온몸 순환] 홀수 수치 합산: 17 + 3 + 11 + 7 + 3 = <span class=\"text-amber-400 font-bold orb text-base\">41</span>",
-        "• [허파 순환] 누적 측정값: 8 + 6 + 11 + 4 = <span class=\"text-cyan-400 font-bold orb text-base\">29</span>",
-        "• 두 숫자를 순서대로 이어 붙이면: <span class=\"text-green-400 font-bold orb text-lg\">4129</span>"
+        "• 온몸 순환 경로에 표시된 홀수 수치들의 합을 구하세요. (앞 두 자리)",
+        "• 허파 순환 경로의 누적 측정값 총합을 구하세요. (뒤 두 자리)",
+        "• 두 숫자를 이어 붙이면 4자리 암호가 됩니다."
       ]
     }
   },
   chart3: {
     step1: {
-      title: "💡 1단계 힌트: 폐포 기체 교환 원리",
+      title: "💡 문제풀이 힌트",
       lines: [
-        "• <span class=\"text-cyan-400 font-bold\">기체 교환의 원리 = 확산</span>: 기체 분자는 농도(분압)가 높은 곳에서 낮은 곳으로 이동합니다.",
-        "• <span class=\"text-green-400 font-bold\">산소(O₂)</span>: 폐포(농도 높음) → 모세혈관 혈액(농도 낮음)으로 이동",
-        "• <span class=\"text-amber-400 font-bold\">이산화탄소(CO₂)</span>: 모세혈관 혈액(농도 높음) → 폐포(농도 낮음)로 이동 후 날숨으로 배출"
+        "• 폐포와 모세혈관 사이의 기체 교환 원리는 농도 차이에 의한 '확산'입니다.",
+        "• 기체는 농도가 높은 곳에서 낮은 곳으로 이동합니다."
       ]
     },
     step2: {
-      title: "💡 2단계 힌트: 코드 추출법",
+      title: "🔑 암호 힌트",
       lines: [
-        "• 호흡 파형 펄스 카운트: '확' = <span class=\"text-cyan-400 font-bold\">8회</span>, '산' = <span class=\"text-amber-400 font-bold\">5회</span>",
-        "• 기체 분자식의 아래첨자: 산소(O<span class=\"text-cyan-400 font-bold\">₂</span>) → <span class=\"text-cyan-400 font-bold\">2</span>, 이산화탄소(CO<span class=\"text-amber-400 font-bold\">₂</span>) → <span class=\"text-amber-400 font-bold\">2</span>",
-        "• 4개 숫자를 순서대로 조합: <span class=\"text-green-400 font-bold orb text-lg\">8 5 2 2</span>"
+        "• 차트에 표시된 핵심 단어의 생체 펄스 감지 횟수를 확인하세요. (앞 두 자리)",
+        "• 산소와 이산화탄소 분자식의 아래첨자 숫자를 순서대로 확인하세요. (뒤 두 자리)"
       ]
     }
   },
   chart4: {
     step1: {
-      title: "💡 1단계 힌트: 콩팥(신장)의 오줌 형성 과정",
+      title: "💡 문제풀이 힌트",
       lines: [
-        "• <span class=\"text-cyan-400 font-bold\">1단계 [여과]</span>: 사구체에서 보먼주머니로 크기가 작은 물질(물, 포도당, 아미노산, 요소, 무기염류)이 이동 (단백질, 혈구는 여과 X)",
-        "• <span class=\"text-amber-400 font-bold\">2단계 [재흡수]</span>: 세뇨관을 지나며 포도당·아미노산은 100% 재흡수, 물과 무기염류는 필요한 만큼 재흡수",
-        "• <span class=\"text-purple-400 font-bold\">3단계 [분비 및 배설]</span>: 혈액 속 남은 노폐물을 모아 최종 오줌(요소, 물, 잉여 무기염류)으로 방광 배출"
+        "• 콩팥의 오줌 형성 과정은 여과 → 재흡수 → 분비입니다.",
+        "• 정상인의 오줌에는 단백질이나 포도당이 배출되지 않아야 합니다."
       ]
     },
     step2: {
-      title: "💡 2단계 힌트: 코드 추출법",
+      title: "🔑 암호 힌트",
       lines: [
-        "• 건강한 사람의 최종 오줌에 정상적으로 배출되는 물질을 차트에서 찾으세요.",
-        "• 정상 배출 성분: <span class=\"text-amber-400 font-bold\">요소</span>(물질코드 <span class=\"text-white font-bold\">37</span>) + <span class=\"text-cyan-400 font-bold\">물</span>(물질코드 <span class=\"text-white font-bold\">09</span>)",
-        "• (주의: 포도당이나 단백질이 오줌에 섞여 나오면 당뇨나 신장 질환입니다!)",
-        "• 두 코드를 이어 붙이면: <span class=\"text-green-400 font-bold orb text-lg\">3709</span>"
+        "• 소변 분석표에서 정상적으로 배출되는 두 가지 물질을 찾으세요.",
+        "• 해당 물질의 고유 홀수 코드를 순서대로 결합하세요."
       ]
     }
   }
