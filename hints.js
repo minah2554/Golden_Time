@@ -5,15 +5,9 @@
  * 
  * 📌 안내:
  * - 이 파일의 내용을 수정하면 방탈출 웹앱의 각 차트 힌트가 즉시 변경됩니다.
- * - 힌트는 학생 스스로 종이 미션지를 풀 수 있도록 유도하며 정답을 직접 노출하지 않습니다.
  * - 힌트 구성:
- *   1. step1: "💡 문제풀이 힌트" (과학 원리 및 분석 접근법 안내)
- *   2. step2: "🔑 암호 힌트" (미션지에서 코드를 조합하는 규칙 안내)
- * 
- * 🎨 추천 강조 클래스:
- * - text-amber-400 : 핵심 과학 개념 / 소화·순환·배설 기관
- * - text-cyan-400  : 중요 물질 / 기체 / 코드 추출 규칙
- * - font-bold      : 굵은 글씨
+ *   1. step1: "💡 문제풀이 힌트" (차트/미션지 이동 및 탐색 원리 안내)
+ *   2. step2: "🔑 암호 힌트" (치료 암호 추출 및 계산 규칙 안내)
  * ============================================================================
  */
 
@@ -22,21 +16,20 @@ window.GAME_HINTS = {
   // [CHART 01] 소화기내과
   // --------------------------------------------------------------------------
   chart1: {
-    organName: "소화기내과 (위·소장·대장 소화관)",
+    organName: "소화기내과 (소화관 탐사 미로)",
     step1: {
       title: "💡 문제풀이 힌트",
       lines: [
-        "• 환자 차트 미션지의 <span class=\"text-cyan-400 font-bold\">소화관 탐사 미로</span>를 확인하세요.",
-        "• 각 분기점(J1~J6)마다 소화 효소의 작용과 소화관의 이동 경로가 올바른 <span class=\"text-amber-400 font-bold\">정상 통과 경로(✓)</span>를 찾아가야 합니다.",
-        "• 특히 <span class=\"text-amber-400 font-bold\">위(Stomach)</span>에서 분비되어 단백질을 1차 분해하는 대표 소화 효소의 이름을 떠올려 보세요."
+        "• <span class=\"text-cyan-400 font-bold\">갈림길 이동 순서:</span>",
+        "• (1,3) 식도 ➔ (3,7) 위 ➔ (6,4) 샘창자 ➔ (9,2) 이자 ➔ (9,6) 작은창자 ➔ (8,9) 큰창자 순으로 이동합니다."
       ]
     },
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 막히지 않고 통과한 각 분기점의 알파벳을 순서대로 수집하세요.",
-        "• 6개의 알파벳을 차례대로 결합하면 치료 암호 코드가 완성됩니다.",
-        "• (영문 코드뿐만 아니라, 해당 효소의 <span class=\"text-cyan-400 font-bold\">한글 이름</span>을 입력해도 정상 승인됩니다.)"
+        "• 바른 경로를 따라 통과하며 수집한 알파벳은 순서대로 <span class=\"text-amber-400 font-bold orb\">VPQTLS</span>입니다.",
+        "• 영문 키보드 자판을 한글로 치환(<span class=\"text-cyan-400 font-bold\">V➔ㅍ, P➔ㅔ, Q➔ㅂ, T➔ㅅ, L➔ㅣ, S➔ㄴ</span>)해 보세요.",
+        "• 위에서 분비되어 단백질을 1차 분해하는 대표 소화효소의 이름(<span class=\"text-green-400 font-bold\">한글 2글자</span>)이 완성됩니다."
       ]
     }
   },
@@ -45,21 +38,20 @@ window.GAME_HINTS = {
   // [CHART 02] 순환기내과
   // --------------------------------------------------------------------------
   chart2: {
-    organName: "순환기내과 (심장 및 혈액 순환)",
+    organName: "순환기내과 (심장 및 혈류 순환)",
     step1: {
       title: "💡 문제풀이 힌트",
       lines: [
-        "• 심장은 온몸으로 피를 보내는 <span class=\"text-amber-400 font-bold\">온몸 순환(체순환)</span>과 폐로 보내는 <span class=\"text-cyan-400 font-bold\">허파 순환(폐순환)</span>을 동시에 수행합니다.",
-        "• [온몸 순환 경로]: 좌심실 → 대동맥 → 온몸의 모세혈관 → 대정맥 → 우심방",
-        "• [허파 순환 경로]: 우심실 → 폐동맥 → 폐의 모세혈관 → 폐정맥 → 좌심방"
+        "• <span class=\"text-red-400 font-bold\">온몸 순환 5단계:</span> 좌심실(15) ➔ 대동맥(3) ➔ 온몸(20) ➔ 대정맥(4) ➔ 우심방(6)",
+        "• <span class=\"text-cyan-400 font-bold\">허파 순환 5단계:</span> 우심실(9) ➔ 폐동맥(1) ➔ 폐(10) ➔ 폐정맥(2) ➔ 좌심방(5)"
       ]
     },
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 미션지 온몸 순환 경로 상에 표시된 수치들 중 <span class=\"text-amber-400 font-bold\">홀수 값만 모두 합산</span>하세요. (앞 두 자리)",
-        "• 허파 순환 경로를 통과하면서 기록된 <span class=\"text-cyan-400 font-bold\">누적 측정값의 총합</span>을 구하세요. (뒤 두 자리)",
-        "• 두 개의 두 자리 숫자를 차례대로 이어 붙이면 4자리 암호가 완성됩니다."
+        "• <span class=\"text-amber-400 font-bold\">코드 A (온몸 순환):</span> 홀수 번째인 1, 3, 5단계 번호의 합산입니다 (15 + 20 + 6 = <span class=\"text-white font-bold orb\">41</span>).",
+        "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold orb\">29</span>).",
+        "• 최종 코드는 앞 2자리(A)와 뒤 2자리(B)를 연결한 <span class=\"text-green-400 font-bold orb text-base\">4자리 숫자</span>입니다."
       ]
     }
   },
@@ -68,21 +60,20 @@ window.GAME_HINTS = {
   // [CHART 03] 호흡기내과
   // --------------------------------------------------------------------------
   chart3: {
-    organName: "호흡기내과 (폐 및 기체 교환)",
+    organName: "호흡기내과 (폐포 기체 교환)",
     step1: {
       title: "💡 문제풀이 힌트",
       lines: [
-        "• 폐포와 모세혈관 사이의 기체 교환은 농도 차이에 의한 <span class=\"text-cyan-400 font-bold\">확산</span> 현상으로 일어납니다.",
-        "• 기체는 농도(분압)가 높은 곳에서 낮은 곳으로 에너지를 소모하지 않고 자연스럽게 이동합니다.",
-        "• 산소(O₂)는 폐포에서 모세혈관으로, 이산화탄소(CO₂)는 모세혈관에서 폐포로 이동합니다."
+        "• 미션지 우측 하단 점선을 뒤로 접어 벽면 <span class=\"text-cyan-400 font-bold\">[호흡기 포스터]</span>의 반쪽 QR과 정확히 겹친 뒤 스캔하세요.",
+        "• 폐포와 모세혈관 사이에서 기체가 농도 차에 의해 이동하는 2글자 핵심 현상은 <span class=\"text-amber-400 font-bold\">확산</span>입니다."
       ]
     },
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 차트에 기록된 기체 교환 원리의 핵심 단어 생체 펄스 감지 횟수를 확인하세요. (앞 두 자리)",
-        "• 교환되는 두 기체(산소, 이산화탄소)의 화학 분자식에 적힌 <span class=\"text-amber-400 font-bold\">아래첨자 숫자</span>를 차례로 확인하세요. (뒤 두 자리)",
-        "• 총 4자리 숫자를 순서대로 입력하세요."
+        "• <span class=\"text-amber-400 font-bold\">1~2번 자리:</span> '확'의 한글 획수(8) + '산'의 한글 획수(5) ➔ <span class=\"text-white font-bold orb\">85</span>",
+        "• <span class=\"text-cyan-400 font-bold\">3~4번 자리:</span> 산소 기체 분자식(O₂)의 아래 첨자(2) + 이산화탄소(CO₂) 속 산소 원자 수(2) ➔ <span class=\"text-white font-bold orb\">22</span>",
+        "• 4자리 숫자를 차례대로 결합한 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>를 입력하세요."
       ]
     }
   },
@@ -91,20 +82,19 @@ window.GAME_HINTS = {
   // [CHART 04] 신장내과
   // --------------------------------------------------------------------------
   chart4: {
-    organName: "신장내과 (콩팥 및 노폐물 배설)",
+    organName: "신장내과 (콩팥 소변 정밀 분석)",
     step1: {
       title: "💡 문제풀이 힌트",
       lines: [
-        "• 콩팥의 네프론에서 오줌이 만들어지는 3단계는 <span class=\"text-cyan-400 font-bold\">여과 → 재흡수 → 분비</span>입니다.",
-        "• 단백질과 혈구는 크기가 커서 사구체에서 여과되지 않아야 정상입니다.",
-        "• 몸에 꼭 필요한 포도당은 세뇨관에서 <span class=\"text-amber-400 font-bold\">100% 재흡수</span>되므로 정상인의 오줌에는 검출되지 않습니다."
+        "• 사구체에서 여과되지 않는 물질(여과액 0.00%인 <span class=\"text-red-400 font-bold\">혈구, 단백질</span>)에 ❌표 하세요.",
+        "• 세뇨관에서 전량 재흡수되는 물질(오줌 0.00%인 <span class=\"text-amber-400 font-bold\">포도당, 아미노산</span>)에 ❌표 하세요."
       ]
     },
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 미션지의 소변 분석표에서 정상적으로 최종 배출되는 <span class=\"text-cyan-400 font-bold\">두 가지 정상 물질</span>을 찾으세요.",
-        "• 해당 두 물질에 부여된 <span class=\"text-amber-400 font-bold\">고유 홀수 코드</span>를 차례대로 이어 붙이면 4자리 암호가 완성됩니다."
+        "• 소거 후 남는 물질 중 번호가 홀수인 것은 <span class=\"text-amber-400 font-bold\">① 요소</span>와 <span class=\"text-cyan-400 font-bold\">⑤ 물</span>입니다.",
+        "• ① 요소의 고유 코드(37)와 ⑤ 물의 고유 코드(09)를 순서대로 이어 붙인 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>가 정답입니다."
       ]
     }
   },
@@ -117,16 +107,15 @@ window.GAME_HINTS = {
     step1: {
       title: "💡 문제풀이 힌트",
       lines: [
-        "• 4개 장기 스탬프를 모두 획득하면 중앙 제어 주입기가 열립니다.",
-        "• 이제 단말기 화면을 넘어 <span class=\"text-amber-400 font-bold\">교실 사방 벽면에 부착된 포스터 4장</span>을 탐색해야 합니다."
+        "• 4개 장기 스탬프를 모두 획득하면 중앙 제어 주입기가 활성화됩니다.",
+        "• 교실 동서남북 사방 벽면에 부착된 <span class=\"text-amber-400 font-bold\">포스터 4장</span>의 [보안 번호]를 확인하세요."
       ]
     },
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 4장의 포스터에 적힌 <span class=\"text-cyan-400 font-bold\">보안 번호</span>를 순서대로 조합하세요.",
-        "• 순서: <span class=\"text-amber-400 font-bold\">①소화기 → ②순환기 → ③호흡기 → ④신장내과</span>",
-        "• 각 포스터의 숫자를 하나씩 모아 최종 4자리 마스터 코드를 입력하십시오."
+        "• 순서: <span class=\"text-cyan-400 font-bold\">①소화기 ➔ ②순환기 ➔ ③호흡기 ➔ ④신장내과</span>",
+        "• 각 포스터에서 찾은 1자리 숫자들을 순서대로 결합하여 <span class=\"text-red-400 font-bold orb text-base\">최종 4자리 보안 번호</span>를 완성하세요."
       ]
     }
   }
