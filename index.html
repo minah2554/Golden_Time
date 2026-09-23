@@ -844,22 +844,22 @@
           <div>
             <label class="block text-slate-400 text-sm mb-2 font-bold">👥 모둠 선택</label>
             <div class="grid grid-cols-3 gap-2">
-              <label
+              <label id="grp-lbl-1" onclick="selectGroup(1)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="1" class="hidden"><span>1모둠</span></label>
-              <label
+              <label id="grp-lbl-2" onclick="selectGroup(2)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="2" class="hidden"><span>2모둠</span></label>
-              <label
+              <label id="grp-lbl-3" onclick="selectGroup(3)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="3" class="hidden"><span>3모둠</span></label>
-              <label
+              <label id="grp-lbl-4" onclick="selectGroup(4)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="4" class="hidden"><span>4모둠</span></label>
-              <label
+              <label id="grp-lbl-5" onclick="selectGroup(5)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="5" class="hidden"><span>5모둠</span></label>
-              <label
+              <label id="grp-lbl-6" onclick="selectGroup(6)"
                 class="grp-lbl flex items-center justify-center py-2 px-3 rounded-lg border border-slate-700 cursor-pointer hover:border-cyan-500 transition-all text-sm"><input
                   type="radio" name="group" value="6" class="hidden"><span>6모둠</span></label>
             </div>
@@ -1862,11 +1862,25 @@
 
     function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
 
+    function selectGroup(n) {
+      const gStr = String(n);
+      const rad = document.querySelector('input[name="group"][value="' + gStr + '"]');
+      if (rad) rad.checked = true;
+      document.querySelectorAll('.grp-lbl').forEach(l => {
+        l.classList.remove('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400');
+        l.classList.add('border-slate-700');
+      });
+      const activeLbl = document.getElementById('grp-lbl-' + gStr);
+      if (activeLbl) {
+        activeLbl.classList.add('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400');
+        activeLbl.classList.remove('border-slate-700');
+      }
+    }
+
     document.querySelectorAll('.grp-lbl').forEach(lb => {
-      lb.addEventListener('click', function () {
-        document.querySelectorAll('.grp-lbl').forEach(l => { l.classList.remove('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400'); l.classList.add('border-slate-700'); });
-        this.classList.add('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400'); this.classList.remove('border-slate-700');
-        this.querySelector('input').checked = true;
+      lb.addEventListener('click', function (e) {
+        const inp = this.querySelector('input');
+        if (inp) selectGroup(inp.value);
       });
     });
 
@@ -2092,8 +2106,7 @@
       if (el) el.classList.add('hidden');
     }
     function closeSuccess() { closeModal('modal-success'); checkAllStamps(); }
-    function confirmResetTeam() { if (confirm('처음 화면으로 돌아가시겠습니까?
-(현재 진행 상황이 해제됩니다)')) resetGame(); }
+    function confirmResetTeam() { if (confirm('처음 화면으로 돌아가시겠습니까?\n(현재 진행 상황이 해제됩니다)')) resetGame(); }
 
     // ============================================================
     // 💡 힌트 탭 전환 & 세부 열람 카운팅 (요구사항 4 완벽 해결)
