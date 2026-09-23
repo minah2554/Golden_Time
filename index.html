@@ -1750,6 +1750,7 @@
       player: { cls: '', grp: '', leader: '', members: [] },
       hintCount: 0,
       openedHints: {},
+      startedAt: null,
       startTime: null,
       clearDuration: null,
       clearTimeStr: null,
@@ -1890,25 +1891,76 @@
     const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxvxvzZ3kFKz4mAfHlL8jFYrrvCvvw8JoKaO0CU89_-JTxXNnSKc6i5-ivG8M72DrqB/exec';
     let GAS_WEB_APP_URL = localStorage.getItem('gas_web_app_url') || DEFAULT_GAS_URL;
     let currentTeacherClass = 1;
+    let remoteNoticeTimer = null;
+    let lastNoticeSeenTime = Number(localStorage.getItem('esc_last_notice_ts') || 0);
+
+    // 학급 번호 정규화 (예: '21', '21반', '2학년 1반', '1' -> '1')
+    function normCls(raw) {
+      if (!raw) return '';
+      const str = String(raw).trim();
+      const m = str.match(/([0-9]+)\s*반/);
+      if (m) {
+        let n = m[1];
+        if (n.length === 2 && n.startsWith('2')) n = n.substring(1);
+        return n;
+      }
+      const digits = str.replace(/[^0-9]/g, '');
+      if (digits.length === 2 && digits.startsWith('2')) return digits.substring(1);
+      return digits;
+    }
+
+    // 완치 소요 시간 파싱 및 Pretendard 한글 표기 변환 (1899 날짜 버그 완벽 방지)
+    function formatClearTime(clearStr, timeDisp) {
+      // 1. timeDisp에 '완료(MM:SS)' 형식이 있는 경우 최우선 추출
+      if (timeDisp && typeof timeDisp === 'string') {
+        const m = timeDisp.match(/완료\s*\(\s*([0-9]+)\s*[:분]\s*([0-9]+)\s*초?\s*\)/);
+        if (m) return parseInt(m[1]) + '분 ' + parseInt(m[2]) + '초';
+        const m2 = timeDisp.match(/([0-9]+)\s*분\s*([0-9]+)\s*초/);
+        if (m2) return parseInt(m2[1]) + '분 ' + parseInt(m2[2]) + '초';
+        const m3 = timeDisp.match(/([0-9]{1,2})\s*:\s*([0-9]{2})/);
+        if (m3) return parseInt(m3[1]) + '분 ' + parseInt(m3[2]) + '초';
+      }
+
+      if (!clearStr) return '완료';
+      const s = String(clearStr).replace(/^'/, '').trim();
+
+      // 2. 구글 시트에서 변환된 1899-12-30T... 또는 ISO 날짜 형식인 경우
+      if (s.includes('1899-12-30') || s.includes('T')) {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) {
+          const mm = d.getMinutes();
+          const ss = d.getSeconds();
+          return mm + '분 ' + (ss < 10 ? '0' : '') + ss + '초';
+        }
+      }
+
+      // 3. MM:SS 형식
+      if (s.includes(':')) {
+        const parts = s.split(':');
+        const mm = parseInt(parts[0]) || 0;
+        const ss = parseInt(parts[1]) || 0;
+        return mm + '분 ' + (ss < 10 ? '0' : '') + ss + '초';
+      }
+
+      return s;
+    }
 
     function saveGasUrl() {
       const inp = document.getElementById('gas-url-input');
       if (!inp) return;
       const url = inp.value.trim();
-      GAS_WEB_APP_URL = url;
-      localStorage.setItem('gas_web_app_url', url);
+      GAS_WEB_APP_URL = url || DEFAULT_GAS_URL;
+      localStorage.setItem('gas_web_app_url', GAS_WEB_APP_URL);
       updateGasStatusBadge();
       closeModal('modal-gas');
-      toast(url ? '구글 시트 연동 URL이 저장되었습니다.' : '구글 시트 연동이 해제되었습니다.', 'ok');
-      if (url) {
-        fetchFromGoogleSheet(true);
-        syncToGoogleSheet();
-      }
+      toast('구글 시트 연동 URL이 저장되었습니다.', 'ok');
+      fetchFromGoogleSheet(true);
+      syncToGoogleSheet();
     }
 
     function openGasModal() {
       const inp = document.getElementById('gas-url-input');
-      if (inp) inp.value = GAS_WEB_APP_URL;
+      if (inp) inp.value = GAS_WEB_APP_URL || DEFAULT_GAS_URL;
       document.getElementById('modal-gas').classList.remove('hidden');
     }
 
@@ -1916,10 +1968,10 @@
       const badge = document.getElementById('gas-status-badge');
       if (!badge) return;
       if (GAS_WEB_APP_URL) {
-        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 animate-pulse';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 animate-pulse font-sans';
         badge.textContent = '🟢 구글 시트 연동 활성';
       } else {
-        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 font-sans';
         badge.textContent = '⚪ URL 미설정 (로컬 관제)';
       }
     }
@@ -1927,11 +1979,11 @@
     function syncToGoogleSheet(overrideData) {
       if (!GAS_WEB_APP_URL || !G.player || !G.player.grp) return;
       try {
-        const tot = 35 * 60 - G.sec;
-        const mm = String(Math.floor(tot / 60)).padStart(2, '0'), ss = String(tot % 60).padStart(2, '0');
+        const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+        const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0'), ss = String(elapsedSec % 60).padStart(2, '0');
         const rm = String(Math.floor(G.sec / 60)).padStart(2, '0'), rs = String(G.sec % 60).padStart(2, '0');
         const timeDisp = G.clearTimeStr ? ('완료(' + G.clearTimeStr + ')') : (mm + ':' + ss + ' 경과 (남은 ' + rm + ':' + rs + ')');
-        const gObj = calcGrade(G.hintCount || 0, tot);
+        const gObj = calcGrade(G.hintCount || 0, elapsedSec);
 
         const payload = Object.assign({
           cls: G.player.cls || '',
@@ -1940,8 +1992,9 @@
           members: G.player.members || [],
           stamps: G.stamps,
           hintCount: G.hintCount || 0,
+          startedAt: G.startedAt || null,
           timeDisplay: timeDisp,
-          clearTimeStr: G.clearTimeStr || null,
+          clearTimeStr: G.clearTimeStr ? ("'" + G.clearTimeStr) : null,
           finalCompleted: !!G.finalCompleted,
           grade: G.finalCompleted ? gObj.label : '-',
           sec: G.sec
@@ -1967,18 +2020,22 @@
       if (isManual) toast('구글 시트에서 최신 현황을 가져오는 중...', 'info');
 
       const sep = GAS_WEB_APP_URL.includes('?') ? '&' : '?';
-      const url = GAS_WEB_APP_URL + sep + 'cls=' + currentTeacherClass + '&t=' + Date.now();
+      const url = GAS_WEB_APP_URL + sep + 't=' + Date.now();
       fetch(url)
         .then(r => r.json())
         .then(data => {
           if (data && data.groups && Array.isArray(data.groups)) {
+            const targetClsStr = String(currentTeacherClass);
             data.groups.forEach(gInfo => {
-              const gNum = Number(String(gInfo.grp).replace(/[^0-9]/g, ''));
-              if (gNum >= 1 && gNum <= 6) {
-                grpStates[gNum] = Object.assign(grpStates[gNum] || {}, gInfo, {
-                  grp: gNum,
-                  cls: gInfo.cls || ('2학년 ' + currentTeacherClass + '반')
-                });
+              const rowClsNorm = gInfo.clsNum || normCls(gInfo.cls);
+              if (rowClsNorm === targetClsStr) {
+                const gNum = Number(String(gInfo.grp).replace(/[^0-9]/g, ''));
+                if (gNum >= 1 && gNum <= 6) {
+                  grpStates[gNum] = Object.assign(grpStates[gNum] || {}, gInfo, {
+                    grp: gNum,
+                    cls: '2학년 ' + currentTeacherClass + '반'
+                  });
+                }
               }
             });
             renderTGroups();
@@ -1987,13 +2044,37 @@
               const now = new Date();
               syncEl.textContent = '동기화: ' + now.toLocaleTimeString();
             }
-            if (isManual) toast('최신 모둠 현황 동기화 완료!', 'ok');
+            if (isManual) toast(currentTeacherClass + '반 최신 현황 동기화 완료!', 'ok');
           }
         })
         .catch(err => {
           console.warn('GAS Fetch error:', err);
-          if (isManual) toast('구글 시트 동기화 실패 (URL 또는 권한 확인)', 'err');
+          if (isManual) toast('구글 시트 동기화 실패 (네트워크를 확인하세요)', 'err');
         });
+    }
+
+    // 학생 화면에서 원격 긴급 공지 수신 감지 (5초 주기)
+    function checkRemoteNotice() {
+      if (!GAS_WEB_APP_URL || !G.running) return;
+      const sep = GAS_WEB_APP_URL.includes('?') ? '&' : '?';
+      fetch(GAS_WEB_APP_URL + sep + 't=' + Date.now())
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.notice && data.notice.msg) {
+            const n = data.notice;
+            const studentClsNorm = normCls(G.player.cls);
+            const noticeClsNorm = normCls(n.cls);
+            const isTarget = (!n.cls || n.cls === 'all' || noticeClsNorm === studentClsNorm);
+
+            if (isTarget && n.ts > lastNoticeSeenTime) {
+              lastNoticeSeenTime = n.ts;
+              try { localStorage.setItem('esc_last_notice_ts', String(n.ts)); } catch (e) { }
+              showBCModal(n.msg);
+              snd('alarm');
+            }
+          }
+        })
+        .catch(() => { });
     }
 
     // ============================================================
@@ -2018,7 +2099,6 @@
         members: members
       };
 
-      // 마지막 접속 정보 저장
       try {
         localStorage.setItem('esc_last_login', JSON.stringify({ cls, grp, leader, members }));
       } catch (e) { }
@@ -2032,18 +2112,27 @@
       } catch (e) { }
 
       let isResume = false;
-      if (saved && (saved.stamps || saved.hintCount || (saved.sec !== undefined && saved.sec < 35 * 60))) {
+      if (saved && (saved.startedAt || saved.stamps || saved.hintCount || (saved.sec !== undefined && saved.sec < 35 * 60))) {
         G.stamps = saved.stamps || [false, false, false, false];
         G.hintCount = saved.hintCount || 0;
         G.openedHints = saved.openedHints || {};
-        G.sec = (saved.sec !== undefined && saved.sec > 0) ? saved.sec : 35 * 60;
+        G.startedAt = saved.startedAt || (Date.now() - ((35 * 60 - (saved.sec || 35 * 60)) * 1000));
         G.finalCompleted = !!saved.finalCompleted;
         G.clearTimeStr = saved.clearTimeStr || null;
+
+        if (G.finalCompleted) {
+          G.sec = saved.sec !== undefined ? saved.sec : 0;
+        } else {
+          // 벽시계 기준 잔여 시간 복원: 나갔다 와도 시간은 정확히 계속 흘러감!
+          const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
+          G.sec = Math.max(0, 35 * 60 - elapsedSec);
+        }
         isResume = true;
       } else {
         G.stamps = [false, false, false, false];
         G.hintCount = 0;
         G.openedHints = {};
+        G.startedAt = null;
         G.sec = 35 * 60;
         G.finalCompleted = false;
         G.clearTimeStr = null;
@@ -2058,7 +2147,6 @@
         toast('🩺 ' + leader + ' 팀장님의 작전(스탬프 ' + clearedCount + '개 완료)을 이어서 시작합니다!', 'ok');
       }
 
-      // 인트로 동영상 재생 준비
       const videoEl = document.getElementById('intro-video-player');
       if (videoEl) {
         try {
@@ -2084,10 +2172,27 @@
       showScreen('screen-dashboard');
       snd('alarm');
       renderStamps();
+
+      // ★ 진행 시간 연속성 보장: 시작 시각이 없으면 현재 시각으로 고정
+      if (!G.startedAt) {
+        G.startedAt = Date.now();
+      }
+
+      // 현재 시각 기준 정확한 남은 시간 산출
+      if (!G.finalCompleted) {
+        const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
+        G.sec = Math.max(0, 35 * 60 - elapsedSec);
+      }
+
       setTimeout(() => { initECG(); startTimer(); }, 300);
       updVitals();
       updTimer();
+      saveLS();
       syncToGoogleSheet();
+
+      // 원격 긴급 공지 수신 타이머 가동 (5초 주기)
+      if (remoteNoticeTimer) clearInterval(remoteNoticeTimer);
+      remoteNoticeTimer = setInterval(checkRemoteNotice, 5000);
     }
 
     function openMission(n) {
@@ -2108,10 +2213,7 @@
     function closeSuccess() { closeModal('modal-success'); checkAllStamps(); }
     function confirmResetTeam() { if (confirm('처음 화면으로 돌아가시겠습니까?\n(현재 진행 상황이 해제됩니다)')) resetGame(); }
 
-    // ============================================================
-    // 💡 힌트 탭 전환 & 세부 열람 카운팅 (요구사항 4 완벽 해결)
-    // ============================================================
-    // 1) 탭 전환: 화면 전환만 수행하며 힌트 수를 절대 차감하지 않음
+    // 💡 힌트 탭 전환 & 세부 열람 카운팅
     function switchChartTab(n, tab) {
       const codeEl = document.getElementById('tab-content-' + n + '-code');
       const hintEl = document.getElementById('tab-content-' + n + '-hint');
@@ -2131,7 +2233,6 @@
       }
     }
 
-    // 2) 세부 힌트 아코디언 토글: 실제 문제풀이/암호 힌트를 열람했을 때만 1회 카운팅
     function tHint(id) {
       const el = document.getElementById(id), ic = document.getElementById(id + '-ic');
       if (!el) return;
@@ -2163,9 +2264,11 @@
       if (ANS.f(val)) {
         inp.disabled = true;
         G.finalCompleted = true;
-        const tot = 35 * 60 - G.sec;
-        const fm = String(Math.floor(tot / 60)).padStart(2, '0'), fs = String(tot % 60).padStart(2, '0');
+        const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+        const fm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
+        const fs = String(elapsedSec % 60).padStart(2, '0');
         G.clearTimeStr = fm + ':' + fs;
+        G.sec = Math.max(0, 35 * 60 - elapsedSec);
         saveLS();
         syncToGoogleSheet();
         closeModal('modal-final'); snd('fanfare'); startFW(); setTimeout(showCert, 2000);
@@ -2190,8 +2293,8 @@
           else card.classList.remove('card-complete');
         }
         if (badge) {
-          if (st) { badge.className = 'status-badge badge-success'; badge.innerHTML = '✓ 치료완료'; }
-          else { badge.className = 'status-badge badge-danger'; badge.innerHTML = '● 위독'; }
+          if (st) { badge.className = 'status-badge badge-success font-sans'; badge.innerHTML = '✓ 치료완료'; }
+          else { badge.className = 'status-badge badge-danger font-sans'; badge.innerHTML = '● 위독'; }
         }
         if (inp && st) inp.disabled = true;
       });
@@ -2238,9 +2341,9 @@
     }
 
     function showCert() {
-      const tot = 35 * 60 - G.sec;
-      const mm = String(Math.floor(tot / 60)).padStart(2, '0'), ss = String(tot % 60).padStart(2, '0');
-      const g = calcGrade(G.hintCount || 0, tot);
+      const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+      const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0'), ss = String(elapsedSec % 60).padStart(2, '0');
+      const g = calcGrade(G.hintCount || 0, elapsedSec);
       const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       set('cert-leader', G.player.leader || '─');
       set('cert-team', (Array.isArray(G.player.members) ? G.player.members.join(', ') : G.player.members) || '─');
@@ -2257,9 +2360,7 @@
       sendBC('COMPLETE', { time: mm + ':' + ss, grade: g.grade });
     }
 
-    // ============================================================
-    // 💾 인증서 고화질 이미지(PNG) 저장 기능 (요구사항 2)
-    // ============================================================
+    // 💾 인증서 고화질 이미지(PNG) 저장 기능
     function downloadCertImage() {
       const certEl = document.querySelector('#modal-complete .certificate');
       if (!certEl) return;
@@ -2291,24 +2392,22 @@
       });
     }
 
-    // 교사 대시보드에서 특정 모둠의 인증서 열람/저장
     function viewTeacherCert(g) {
       const s = grpStates[g];
       if (!s) return;
-      const tot = 35 * 60 - (s.sec !== undefined ? s.sec : 0);
-      let mm = '25', ss = '00';
-      if (s.clearTimeStr && s.clearTimeStr.includes(':')) {
-        const parts = s.clearTimeStr.split(':');
-        mm = parts[0]; ss = parts[1];
+      const cleanTime = formatClearTime(s.clearTimeStr, s.timeDisplay);
+      let elapsedSec = 25 * 60;
+      const m = cleanTime.match(/([0-9]+)\s*분\s*([0-9]+)\s*초/);
+      if (m) {
+        elapsedSec = parseInt(m[1]) * 60 + parseInt(m[2]);
       }
-      const elapsedSec = s.clearTimeStr ? (parseInt(mm) * 60 + parseInt(ss)) : tot;
       const gObj = calcGrade(s.hintCount || 0, elapsedSec);
 
       const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       set('cert-leader', s.leader || '─');
-      set('cert-team', s.members || '─');
-      set('cert-class', (s.cls || ('2학년 ' + currentTeacherClass + '반')) + ' ' + g + '모둠');
-      set('cert-time', s.clearTimeStr ? (s.clearTimeStr + ' (완치)') : '완치 완료');
+      set('cert-team', (Array.isArray(s.members) ? s.members.join(', ') : s.members) || '─');
+      set('cert-class', '2학년 ' + currentTeacherClass + '반 ' + g + '모둠');
+      set('cert-time', cleanTime);
       set('cert-hint-count', s.hintCount || 0);
 
       const gradeBanner = document.getElementById('cert-grade-banner');
@@ -2371,31 +2470,32 @@
     }
 
     // ============================================================
-    // 👨‍⚕️ 교사 관제 대시보드 (반 선택 & 구글 시트 동기화)
+    // 👨‍⚕️ 교사 관제 대시보드
     // ============================================================
     function openTDash() {
       document.getElementById('modal-teacher').classList.remove('hidden');
       updateGasStatusBadge();
 
-      // 현재 접속 학생의 반이 있다면 그 반으로 기본 선택, 없으면 1반
+      // 메인 화면에서 바로 들어왔을 때도 현재 선택 학급 데이터 즉시 동기화
       const studentClsNum = Number(String(G.player.cls || '').replace(/[^0-9]/g, ''));
       selectTeacherClass(studentClsNum || currentTeacherClass || 1);
 
       sendBC('REQ_STATE');
 
-      // 1초마다 진행 시간 리프레시 + 8초마다 구글 시트 자동 폴링
       if (tDashInterval) clearInterval(tDashInterval);
       let tickCount = 0;
       tDashInterval = setInterval(() => {
         tickCount++;
+        // 로컬 진행 중 모둠 시간 갱신
         if (G.player.grp && grpStates[G.player.grp] && !grpStates[G.player.grp].clearTimeStr) {
-          grpStates[G.player.grp].sec = G.sec;
+          const elapsed = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+          grpStates[G.player.grp].sec = Math.max(0, 35 * 60 - elapsed);
           grpStates[G.player.grp].hintCount = G.hintCount || 0;
         }
         renderTGroups();
 
-        // 8초마다 구글 시트에서 최신 현황 자동 동기화
-        if (tickCount % 8 === 0 && GAS_WEB_APP_URL) {
+        // 6초마다 구글 시트 자동 동기화
+        if (tickCount % 6 === 0 && GAS_WEB_APP_URL) {
           fetchFromGoogleSheet(false);
         }
       }, 1000);
@@ -2407,9 +2507,9 @@
         const btn = document.getElementById('t-btn-cls-' + c);
         if (btn) {
           if (c === currentTeacherClass) {
-            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400';
+            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400 font-sans';
           } else {
-            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700';
+            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans';
           }
         }
       }
@@ -2424,14 +2524,14 @@
     function loadClassData(cls) {
       for (let g = 1; g <= 6; g++) {
         try {
-          const d = localStorage.getItem('esc_c' + cls + '_g' + g) || (cls === Number(String(G.player.cls||'').replace(/[^0-9]/g,'')) ? localStorage.getItem('esc_' + g) : null);
+          const d = localStorage.getItem('esc_c' + cls + '_g' + g);
           if (d) grpStates[g] = Object.assign(grpStates[g] || {}, JSON.parse(d));
-          else if (!grpStates[g] || grpStates[g].cls !== '2학년 ' + cls + '반') {
+          else if (!grpStates[g] || normCls(grpStates[g].cls) !== String(cls)) {
             grpStates[g] = { cls: '2학년 ' + cls + '반', grp: g, stamps: [false, false, false, false], hintCount: 0, sec: 35 * 60 };
           }
         } catch (e) { }
       }
-      if (G.player.grp && (G.player.cls === ('2학년 ' + cls + '반') || Number(String(G.player.cls||'').replace(/[^0-9]/g,'')) === cls)) {
+      if (G.player.grp && normCls(G.player.cls) === String(cls)) {
         grpStates[G.player.grp] = Object.assign(grpStates[G.player.grp] || {}, {
           cls: G.player.cls,
           grp: G.player.grp,
@@ -2470,25 +2570,26 @@
           '<span style="opacity:' + (s && s.stamps && s.stamps[i] ? 1 : 0.2) + ';font-size:1.2rem;" title="차트 0' + (i + 1) + '">' + ic + '</span>'
         ).join(' ');
 
-        const hintBadge = '<div class="mt-2 text-xs flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded border border-slate-800">' +
+        const hintBadge = '<div class="mt-2 text-xs flex items-center justify-between bg-slate-900/60 px-2 py-1.5 rounded border border-slate-800 font-sans">' +
           '<span class="text-amber-400 font-bold flex items-center gap-1">💡 힌트 사용:</span>' +
-          '<span class="font-bold text-white bg-slate-800 px-2 py-0.5 rounded">' + (s && s.hintCount ? s.hintCount : 0) + '회</span>' +
+          '<span class="font-bold text-white bg-slate-800 px-2 py-0.5 rounded font-sans">' + (s && s.hintCount ? s.hintCount : 0) + '회</span>' +
           '</div>';
 
         let timeBadge = '';
         let statusBadge = '';
 
         if (!isConnected) {
-          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400">⚪ 미접속</span>';
-          timeBadge = '<div class="mt-2 text-xs text-slate-500 font-bold orb flex items-center justify-between bg-slate-900/40 p-2 rounded border border-slate-800/40">' +
-            '<span>⏱ 진행 시간:</span><span>대기 중 (미접속)</span></div>';
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 font-sans">⚪ 미접속</span>';
+          timeBadge = '<div class="mt-2 text-xs text-slate-400 font-bold flex items-center justify-between bg-slate-900/40 p-2.5 rounded-lg border border-slate-800/40 font-sans">' +
+            '<span class="shrink-0 whitespace-nowrap">⏱ 진행 시간:</span><span class="text-slate-500 font-normal">대기 중 (미접속)</span></div>';
         } else if (isCleared) {
-          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700">🏆 완치 완료</span>';
-          timeBadge = '<div class="mt-2 text-xs text-green-300 font-bold orb flex flex-col gap-1 bg-green-950/40 p-2 rounded border border-green-800/50">' +
-            '<div class="flex justify-between items-center"><span class="text-green-400">⏱ 완치 소요 시간:</span><span class="text-sm font-black text-white">' + (s.clearTimeStr || '완료') + '</span></div>' +
-            '<div class="text-[10px] text-green-400/80 text-right">환자 생체 반응 정상 회복</div></div>';
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 font-sans">🏆 완치 완료</span>';
+          const cleanTime = formatClearTime(s.clearTimeStr, s.timeDisplay);
+          timeBadge = '<div class="mt-2 text-xs text-green-300 font-bold flex flex-col gap-1.5 bg-green-950/40 p-2.5 rounded-lg border border-green-800/50 font-sans">' +
+            '<div class="flex justify-between items-center"><span class="shrink-0 whitespace-nowrap text-green-400 font-medium">⏱ 완치 소요 시간:</span><span class="text-sm font-black text-white font-sans tracking-wide">' + cleanTime + '</span></div>' +
+            '<div class="text-[11px] text-green-400/80 text-right font-sans">환자 생체 반응 정상 회복</div></div>';
         } else {
-          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-700 animate-pulse">🟢 작전 진행 중</span>';
+          statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-700 animate-pulse font-sans">🟢 작전 진행 중</span>';
           const curSec = s.sec !== undefined ? s.sec : (g === G.player.grp ? G.sec : 35 * 60);
           const elapsed = Math.max(0, (35 * 60) - curSec);
           const em = Math.floor(elapsed / 60);
@@ -2496,23 +2597,21 @@
           const rm = Math.floor(curSec / 60);
           const rs = curSec % 60;
 
-          timeBadge = '<div class="mt-2 text-xs font-bold orb flex flex-col gap-1 bg-cyan-950/40 p-2 rounded border border-cyan-800/50">' +
-            '<div class="flex justify-between items-center text-cyan-300"><span>⏱ 진행 시간:</span><span class="text-sm font-black text-white">' + em + '분 ' + (es < 10 ? '0' : '') + es + '초 경과</span></div>' +
-            '<div class="flex justify-between items-center text-[11px] text-amber-400"><span>⏳ 남은 시간:</span><span>' + rm + '분 ' + (rs < 10 ? '0' : '') + rs + '초</span></div></div>';
+          timeBadge = '<div class="mt-2 text-xs font-bold flex flex-col gap-1.5 bg-cyan-950/40 p-2.5 rounded-lg border border-cyan-800/50 font-sans">' +
+            '<div class="flex justify-between items-center text-cyan-300"><span class="shrink-0 whitespace-nowrap font-medium">⏱ 진행 시간:</span><span class="text-sm font-black text-white font-sans tracking-wide">' + em + '분 ' + (es < 10 ? '0' : '') + es + '초 경과</span></div>' +
+            '<div class="flex justify-between items-center text-amber-400 text-xs"><span class="shrink-0 whitespace-nowrap font-medium">⏳ 남은 시간:</span><span class="font-sans font-bold">' + rm + '분 ' + (rs < 10 ? '0' : '') + rs + '초</span></div></div>';
         }
 
-        // 완치 인증서 보기 버튼 (교사 전용 저장)
         const certBtn = isCleared
-          ? '<button onclick="viewTeacherCert(' + g + ')" class="w-full mt-2 py-1.5 px-2 rounded bg-amber-950/80 border border-amber-600 text-amber-300 text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1 shadow-sm">📜 완치 인증서 보기 / 저장</button>'
+          ? '<button onclick="viewTeacherCert(' + g + ')" class="w-full mt-2 py-1.5 px-2 rounded bg-amber-950/80 border border-amber-600 text-amber-300 text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1 shadow-sm font-sans">📜 완치 인증서 보기 / 저장</button>'
           : '';
 
-        // 모둠별 개별 리셋 버튼
         const resetBtn = isConnected
-          ? '<button onclick="resetGroupData(' + g + ')" class="w-full mt-1.5 py-1 px-2 rounded bg-red-950/60 border border-red-800 text-red-300 text-[11px] font-bold hover:bg-red-900 transition-all flex items-center justify-center gap-1">🔄 이 팀 데이터 리셋</button>'
+          ? '<button onclick="resetGroupData(' + g + ')" class="w-full mt-1.5 py-1 px-2 rounded bg-red-950/60 border border-red-800 text-red-300 text-[11px] font-bold hover:bg-red-900 transition-all flex items-center justify-center gap-1 font-sans">🔄 이 팀 데이터 리셋</button>'
           : '';
 
         const leaderName = s && s.leader ? s.leader : (isConnected ? '모둠원' : '미접속');
-        const memberStr = s && s.members ? '<div class="text-[11px] text-slate-400 truncate mb-1">팀원: ' + (Array.isArray(s.members) ? s.members.join(', ') : s.members) + '</div>' : '';
+        const memberStr = s && s.members ? '<div class="text-[11px] text-slate-400 truncate mb-1 font-sans">팀원: ' + (Array.isArray(s.members) ? s.members.join(', ') : s.members) + '</div>' : '';
 
         htmlStr += `
       <div class="teacher-card p-3.5 rounded-xl bg-[#0f1628]/90 border border-cyan-900/40 shadow-lg flex flex-col justify-between">
@@ -2521,12 +2620,12 @@
             <span class="orb text-cyan-400 text-sm font-black">${g}모둠</span>
             ${statusBadge}
           </div>
-          <div class="text-white text-sm font-bold mb-0.5 truncate flex items-center gap-1.5">
+          <div class="text-white text-sm font-bold mb-0.5 truncate flex items-center gap-1.5 font-sans">
             <span>2학년 ${currentTeacherClass}반</span>
             <span class="text-cyan-200">· ${leaderName}</span>
           </div>
           ${memberStr}
-          <div class="flex items-center justify-between mt-2 mb-1 bg-slate-950/50 p-1.5 rounded">
+          <div class="flex items-center justify-between mt-2 mb-1 bg-slate-950/50 p-1.5 rounded font-sans">
             <span class="text-[11px] text-slate-400">치료 진척도:</span>
             <span class="text-amber-400 text-xs font-black">${cnt} / 4 완료</span>
           </div>
@@ -2544,18 +2643,18 @@
       gr.innerHTML = htmlStr;
     }
 
-    // 교사 관리자: 특정 모둠 데이터 리셋
     function resetGroupData(g) {
-      if (!confirm(currentTeacherClass + '반 ' + g + '모둠의 저장된 모든 데이터(스탬프, 힌트 수, 진행 시간)를 초기화하시겠습니까?')) return;
+      if (!confirm('2학년 ' + currentTeacherClass + '반 ' + g + '모둠의 저장된 모든 데이터(스탬프, 힌트 수, 진행 시간)를 초기화하시겠습니까?')) return;
       try {
         localStorage.removeItem('esc_c' + currentTeacherClass + '_g' + g);
         localStorage.removeItem('esc_' + g);
       } catch (e) { }
       delete grpStates[g];
-      if (G.player.grp === g && String(G.player.cls).includes(currentTeacherClass + '반')) {
+      if (G.player.grp === g && normCls(G.player.cls) === String(currentTeacherClass)) {
         G.stamps = [false, false, false, false];
         G.hintCount = 0;
         G.openedHints = {};
+        G.startedAt = null;
         G.sec = 35 * 60;
         G.clearTimeStr = null;
         G.finalCompleted = false;
@@ -2568,7 +2667,6 @@
       toast(g + '모둠 데이터가 성공적으로 초기화되었습니다.', 'ok');
     }
 
-    // 교사 관리자: 현재 선택 학급 모둠 일괄 리셋 (수업 초기화)
     function resetAllGroups() {
       if (!confirm('⚠️ 2학년 ' + currentTeacherClass + '반의 1~6모둠 진행 상황과 힌트 기록을 모두 초기화하시겠습니까?\n(새로운 수업이나 반 변경 시 사용합니다)')) return;
       for (let g = 1; g <= 6; g++) {
@@ -2578,10 +2676,11 @@
         } catch (e) { }
         delete grpStates[g];
       }
-      if (G.player.grp && String(G.player.cls).includes(currentTeacherClass + '반')) {
+      if (G.player.grp && normCls(G.player.cls) === String(currentTeacherClass)) {
         G.stamps = [false, false, false, false];
         G.hintCount = 0;
         G.openedHints = {};
+        G.startedAt = null;
         G.sec = 35 * 60;
         G.clearTimeStr = null;
         G.finalCompleted = false;
@@ -2594,22 +2693,51 @@
       toast(currentTeacherClass + '반의 모든 모둠 데이터가 초기화되었습니다.', 'ok');
     }
 
-    function tCtrl(a) { if (a === 'pause') togglePause(); if (a === 'add5') { G.sec = Math.min(G.sec + 300, 99 * 60); updTimer(); } if (a === 'reset') { G.sec = 35 * 60; updTimer(); } sendBC('TIMER_CTRL', { a }); }
+    function tCtrl(a) { if (a === 'pause') togglePause(); if (a === 'add5') { G.sec = Math.min(G.sec + 300, 99 * 60); updTimer(); } if (a === 'reset') { G.sec = 35 * 60; G.startedAt = Date.now(); updTimer(); } sendBC('TIMER_CTRL', { a }); }
     function forceApprove(n) { approveStamp(n); sendBC('FORCE_APPROVE', { n, grp: 'all' }); }
-    function sendBroadcast() { const msg = document.getElementById('bc-msg').value.trim(); if (!msg) { toast('공지 메시지를 입력하세요!', 'err'); return; } sendBC('BROADCAST_NOTICE', { msg }); showBCModal(msg); snd('alarm'); document.getElementById('bc-msg').value = ''; toast('긴급 공지 전송 완료!', 'ok'); }
+
+    // 📢 긴급 공지 전송 (동일 PC + 전체 학생 기기 원격 전송)
+    function sendBroadcast() {
+      const msg = document.getElementById('bc-msg').value.trim();
+      if (!msg) { toast('공지 메시지를 입력하세요!', 'err'); return; }
+
+      // 1. 동일 브라우저 브로드캐스트
+      sendBC('BROADCAST_NOTICE', { msg });
+      showBCModal(msg);
+      snd('alarm');
+      document.getElementById('bc-msg').value = '';
+      toast('긴급 공지 전송 완료!', 'ok');
+
+      // 2. 구글 시트 원격 브로드캐스트 (전체 학생 기기 전송)
+      if (GAS_WEB_APP_URL) {
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'sendNotice',
+            msg: msg,
+            cls: currentTeacherClass,
+            timestamp: Date.now()
+          })
+        }).catch(e => console.warn('Broadcast send notice:', e));
+      }
+    }
+
     function showBCModal(msg) { document.getElementById('bc-content').textContent = msg; document.getElementById('modal-broadcast').classList.remove('hidden'); }
     function closeBroadcast() { document.getElementById('modal-broadcast').classList.add('hidden'); }
 
     function resetGame() {
       G.stamps = [false, false, false, false]; G.sec = 35 * 60; G.running = false; G.paused = false;
-      G.hintCount = 0; G.openedHints = {}; G.finalCompleted = false; G.clearTimeStr = null;
+      G.hintCount = 0; G.openedHints = {}; G.startedAt = null; G.finalCompleted = false; G.clearTimeStr = null;
       if (G.timerInt) clearInterval(G.timerInt); if (G.hbInt) clearInterval(G.hbInt); if (G.ecgAnim) cancelAnimationFrame(G.ecgAnim);
+      if (remoteNoticeTimer) clearInterval(remoteNoticeTimer);
       document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
       const to = document.getElementById('modal-timeout'); if (to) to.remove();
       [1, 2, 3, 4].forEach(n => {
         const inp = document.getElementById('ci' + n); if (inp) { inp.value = ''; inp.disabled = false; inp.classList.remove('err-shake'); }
         const msg = document.getElementById('cm' + n); if (msg) msg.classList.add('hidden');
-        const b = document.getElementById('badge-' + n); if (b) { b.className = 'status-badge badge-danger'; b.innerHTML = '● 위독'; }
+        const b = document.getElementById('badge-' + n); if (b) { b.className = 'status-badge badge-danger font-sans'; b.innerHTML = '● 위독'; }
         const c = document.getElementById('mc' + n); if (c) c.classList.remove('card-complete');
       });
       SIDS.forEach(id => { const e = document.getElementById(id); if (e) e.classList.remove('active'); });
@@ -2623,7 +2751,7 @@
 
     function saveLS() {
       try {
-        const clsNum = String(G.player.cls || '').replace(/[^0-9]/g, '');
+        const clsNum = normCls(G.player.cls);
         const data = {
           cls: G.player.cls,
           grp: G.player.grp,
@@ -2632,6 +2760,7 @@
           stamps: G.stamps,
           hintCount: G.hintCount || 0,
           openedHints: G.openedHints || {},
+          startedAt: G.startedAt || null,
           clearTimeStr: G.clearTimeStr || null,
           finalCompleted: G.finalCompleted || false,
           sec: G.sec,
@@ -2650,6 +2779,27 @@
     function toast(msg, type = 'info') { const el = document.getElementById('toast'); if (!el) return; el.textContent = msg; el.style.background = type === 'err' ? 'rgba(239,68,68,.9)' : type === 'ok' ? 'rgba(34,197,94,.9)' : 'rgba(6,182,212,.9)'; el.style.opacity = '1'; if (toastT) clearTimeout(toastT); toastT = setTimeout(() => el.style.opacity = '0', 3000); }
 
     document.addEventListener('click', () => { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); }, { passive: true });
+
+    function tick() {
+      if (G.paused || G.finalCompleted) return;
+      // ★ 벽시계 기준 타이머: 페이지를 나갔다 들어와도 시간 흐름 완벽 유지!
+      if (G.startedAt) {
+        const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
+        G.sec = Math.max(0, 35 * 60 - elapsedSec);
+      } else {
+        G.sec--;
+      }
+
+      if (G.sec <= 0) {
+        G.sec = 0;
+        clearInterval(G.timerInt);
+        G.running = false;
+        updTimer();
+        showTO();
+        return;
+      }
+      updTimer();
+    }
 
     // 마지막 로그인 정보 자동 복원
     window.addEventListener('DOMContentLoaded', () => {
