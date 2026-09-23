@@ -26,6 +26,7 @@
     href="https://fonts.googleapis.com/css2?family=Outfit:wght@600;700;800;900&family=Syne:wght@700;800;900&family=Orbitron:wght@500;700;900&display=swap"
     rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script>
     tailwind.config = {
       theme: {
@@ -869,7 +870,7 @@
               class="w-full bg-[#0f1628] border border-cyan-900/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 placeholder-slate-600 text-sm">
           </div>
           <div>
-            <label class="block text-slate-400 text-sm mb-1 font-bold">🏥 전문의팀 (쉼표 구분)</label>
+            <label class="block text-slate-400 text-sm mb-1 font-bold">🏥 전문의팀 (팀원 이름, 쉼표구분)</label>
             <input id="login-members" type="text" placeholder="예: 김민준, 이서연, 박지호" maxlength="60"
               class="w-full bg-[#0f1628] border border-cyan-900/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 placeholder-slate-600 text-sm">
           </div>
@@ -1589,9 +1590,10 @@
         </div>
 
         <!-- 버튼 -->
-        <div class="flex gap-2">
-          <button onclick="window.print()" class="btn-neon btn-amber flex-1 py-2.5 text-xs">🖨️ 인증서 출력</button>
-          <button onclick="resetGame()" class="btn-neon btn-cyan flex-1 py-2.5 text-xs">🔄 새 게임</button>
+        <div class="flex flex-col sm:flex-row gap-2">
+          <button onclick="downloadCertImage()" class="btn-neon btn-amber flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1">💾 인증서 이미지(PNG) 저장</button>
+          <button onclick="window.print()" class="btn-neon btn-cyan flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1">🖨️ 인증서 출력</button>
+          <button onclick="closeModal('modal-complete')" class="btn-neon flex-1 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800/80 border border-slate-600 flex items-center justify-center gap-1">✕ 닫기</button>
         </div>
       </div>
     </div>
@@ -1636,12 +1638,44 @@
           <div class="flex items-center gap-2">
             <button onclick="resetAllGroups()"
               class="px-3 py-1.5 rounded-lg bg-red-950/80 border border-red-700 text-red-300 hover:bg-red-900 text-xs font-bold transition-all shadow-md flex items-center gap-1.5">
-              ⚠️ 전체 모둠 초기화
+              ⚠️ 현재 학급 초기화
             </button>
             <button onclick="closeModal('modal-teacher')"
               class="text-slate-500 hover:text-white w-8 h-8 flex items-center justify-center rounded-lg hover:bg-slate-700 transition-all">✕</button>
           </div>
         </div>
+
+        <!-- 🏫 관제 학급 선택 바 -->
+        <div class="flex flex-wrap items-center justify-between gap-2 mb-4 bg-slate-900/80 p-3 rounded-xl border border-cyan-900/50">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-amber-400 font-bold flex items-center gap-1">🏫 관제 학급 선택:</span>
+            <div class="flex flex-wrap gap-1.5" id="t-class-selector">
+              <button onclick="selectTeacherClass(1)" id="t-btn-cls-1" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400">1반</button>
+              <button onclick="selectTeacherClass(2)" id="t-btn-cls-2" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">2반</button>
+              <button onclick="selectTeacherClass(3)" id="t-btn-cls-3" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">3반</button>
+              <button onclick="selectTeacherClass(4)" id="t-btn-cls-4" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">4반</button>
+              <button onclick="selectTeacherClass(5)" id="t-btn-cls-5" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">5반</button>
+              <button onclick="selectTeacherClass(6)" id="t-btn-cls-6" class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">6반</button>
+            </div>
+          </div>
+          <div class="text-[11px] text-slate-400">선택한 반의 1~6모둠을 관제합니다</div>
+        </div>
+
+        <!-- 📊 구글 시트 실시간 연동 현황 바 -->
+        <div class="card-medical mb-4 bg-slate-900/60 border border-cyan-900/40">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-bold text-slate-300">📊 구글 시트 연동:</span>
+              <span id="gas-status-badge" class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400">⚪ URL 미설정 (로컬 관제)</span>
+              <span id="gas-last-sync" class="text-[11px] text-slate-500 font-mono"></span>
+            </div>
+            <div class="flex items-center gap-1.5">
+              <button onclick="fetchFromGoogleSheet(true)" class="btn-neon btn-cyan px-2.5 py-1 text-xs font-bold flex items-center gap-1">🔄 실시간 새로고침</button>
+              <button onclick="openGasModal()" class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold">⚙️ 연동 설정</button>
+            </div>
+          </div>
+        </div>
+
         <div class="card-medical mb-4">
           <h3 class="text-amber-400 font-bold text-sm mb-3">⏱ 타이머 제어</h3>
           <div class="flex flex-wrap gap-2">
@@ -1836,16 +1870,180 @@
       });
     });
 
+    // ============================================================
+    // 🌐 구글 스프레드시트 실시간 관제 연동
+    // ============================================================
+    let GAS_WEB_APP_URL = localStorage.getItem('gas_web_app_url') || '';
+    let currentTeacherClass = 1;
+
+    function saveGasUrl() {
+      const inp = document.getElementById('gas-url-input');
+      if (!inp) return;
+      const url = inp.value.trim();
+      GAS_WEB_APP_URL = url;
+      localStorage.setItem('gas_web_app_url', url);
+      updateGasStatusBadge();
+      closeModal('modal-gas');
+      toast(url ? '구글 시트 연동 URL이 저장되었습니다.' : '구글 시트 연동이 해제되었습니다.', 'ok');
+      if (url) {
+        fetchFromGoogleSheet(true);
+        syncToGoogleSheet();
+      }
+    }
+
+    function openGasModal() {
+      const inp = document.getElementById('gas-url-input');
+      if (inp) inp.value = GAS_WEB_APP_URL;
+      document.getElementById('modal-gas').classList.remove('hidden');
+    }
+
+    function updateGasStatusBadge() {
+      const badge = document.getElementById('gas-status-badge');
+      if (!badge) return;
+      if (GAS_WEB_APP_URL) {
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 animate-pulse';
+        badge.textContent = '🟢 구글 시트 연동 활성';
+      } else {
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400';
+        badge.textContent = '⚪ URL 미설정 (로컬 관제)';
+      }
+    }
+
+    function syncToGoogleSheet(overrideData) {
+      if (!GAS_WEB_APP_URL || !G.player || !G.player.grp) return;
+      try {
+        const tot = 35 * 60 - G.sec;
+        const mm = String(Math.floor(tot / 60)).padStart(2, '0'), ss = String(tot % 60).padStart(2, '0');
+        const rm = String(Math.floor(G.sec / 60)).padStart(2, '0'), rs = String(G.sec % 60).padStart(2, '0');
+        const timeDisp = G.clearTimeStr ? ('완료(' + G.clearTimeStr + ')') : (mm + ':' + ss + ' 경과 (남은 ' + rm + ':' + rs + ')');
+        const gObj = calcGrade(G.hintCount || 0, tot);
+
+        const payload = Object.assign({
+          cls: G.player.cls || '',
+          grp: G.player.grp || '',
+          leader: G.player.leader || '',
+          members: G.player.members || [],
+          stamps: G.stamps,
+          hintCount: G.hintCount || 0,
+          timeDisplay: timeDisp,
+          clearTimeStr: G.clearTimeStr || null,
+          finalCompleted: !!G.finalCompleted,
+          grade: G.finalCompleted ? gObj.label : '-',
+          sec: G.sec
+        }, overrideData || {});
+
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        }).catch(e => console.warn('GAS Sync notice:', e));
+      } catch (e) { }
+    }
+
+    function fetchFromGoogleSheet(isManual = false) {
+      if (!GAS_WEB_APP_URL) {
+        if (isManual) {
+          toast('구글 시트 연동 URL이 설정되어 있지 않습니다. [⚙️ 연동 설정]을 눌러 입력하세요.', 'err');
+          openGasModal();
+        }
+        return;
+      }
+      if (isManual) toast('구글 시트에서 최신 현황을 가져오는 중...', 'info');
+
+      const sep = GAS_WEB_APP_URL.includes('?') ? '&' : '?';
+      const url = GAS_WEB_APP_URL + sep + 'cls=' + currentTeacherClass + '&t=' + Date.now();
+      fetch(url)
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.groups && Array.isArray(data.groups)) {
+            data.groups.forEach(gInfo => {
+              const gNum = Number(String(gInfo.grp).replace(/[^0-9]/g, ''));
+              if (gNum >= 1 && gNum <= 6) {
+                grpStates[gNum] = Object.assign(grpStates[gNum] || {}, gInfo, {
+                  grp: gNum,
+                  cls: gInfo.cls || ('2학년 ' + currentTeacherClass + '반')
+                });
+              }
+            });
+            renderTGroups();
+            const syncEl = document.getElementById('gas-last-sync');
+            if (syncEl) {
+              const now = new Date();
+              syncEl.textContent = '동기화: ' + now.toLocaleTimeString();
+            }
+            if (isManual) toast('최신 모둠 현황 동기화 완료!', 'ok');
+          }
+        })
+        .catch(err => {
+          console.warn('GAS Fetch error:', err);
+          if (isManual) toast('구글 시트 동기화 실패 (URL 또는 권한 확인)', 'err');
+        });
+    }
+
+    // ============================================================
+    // 👤 학생 로그인 & 이어하기 로직
+    // ============================================================
     function handleLogin() {
       const cls = document.getElementById('login-class').value;
       const grpEl = document.querySelector('input[name="group"]:checked');
       const leader = document.getElementById('login-leader').value.trim();
+      const membersRaw = document.getElementById('login-members').value;
       if (!cls) { toast('학급을 선택하세요!', 'err'); return; }
       if (!grpEl) { toast('모둠을 선택하세요!', 'err'); return; }
       if (!leader) { toast('팀장 이름을 입력하세요!', 'err'); return; }
-      G.player = { cls: '2학년 ' + cls + '반', grp: grpEl.value, leader, members: document.getElementById('login-members').value.split(',').map(m => m.trim()).filter(Boolean) };
-      saveLS(); snd('beep');
-      // 인트로 동영상 준비 및 자동 재생 시도
+
+      const grp = grpEl.value;
+      const members = membersRaw.split(',').map(m => m.trim()).filter(Boolean);
+
+      G.player = {
+        cls: '2학년 ' + cls + '반',
+        grp: grp,
+        leader: leader,
+        members: members
+      };
+
+      // 마지막 접속 정보 저장
+      try {
+        localStorage.setItem('esc_last_login', JSON.stringify({ cls, grp, leader, members }));
+      } catch (e) { }
+
+      // 이전 진행 상황 복원 (이어하기)
+      const keySpecific = 'esc_c' + cls + '_g' + grp;
+      let saved = null;
+      try {
+        const raw = localStorage.getItem(keySpecific) || localStorage.getItem('esc_' + grp);
+        if (raw) saved = JSON.parse(raw);
+      } catch (e) { }
+
+      let isResume = false;
+      if (saved && (saved.stamps || saved.hintCount || (saved.sec !== undefined && saved.sec < 35 * 60))) {
+        G.stamps = saved.stamps || [false, false, false, false];
+        G.hintCount = saved.hintCount || 0;
+        G.openedHints = saved.openedHints || {};
+        G.sec = (saved.sec !== undefined && saved.sec > 0) ? saved.sec : 35 * 60;
+        G.finalCompleted = !!saved.finalCompleted;
+        G.clearTimeStr = saved.clearTimeStr || null;
+        isResume = true;
+      } else {
+        G.stamps = [false, false, false, false];
+        G.hintCount = 0;
+        G.openedHints = {};
+        G.sec = 35 * 60;
+        G.finalCompleted = false;
+        G.clearTimeStr = null;
+      }
+
+      saveLS();
+      snd('beep');
+      syncToGoogleSheet();
+
+      if (isResume) {
+        const clearedCount = G.stamps.filter(Boolean).length;
+        toast('🩺 ' + leader + ' 팀장님의 작전(스탬프 ' + clearedCount + '개 완료)을 이어서 시작합니다!', 'ok');
+      }
+
+      // 인트로 동영상 재생 준비
       const videoEl = document.getElementById('intro-video-player');
       if (videoEl) {
         try {
@@ -1866,20 +2064,40 @@
     }
 
     function startGame() {
-      const ht = document.getElementById('header-team'); if (ht) ht.textContent = G.player.grp + '모둠 · ' + G.player.leader;
-      showScreen('screen-dashboard'); snd('alarm');
-      setTimeout(() => { initECG(); startTimer(); }, 300); updVitals();
+      const ht = document.getElementById('header-team');
+      if (ht) ht.textContent = G.player.cls + ' ' + G.player.grp + '모둠 · ' + G.player.leader;
+      showScreen('screen-dashboard');
+      snd('alarm');
+      renderStamps();
+      setTimeout(() => { initECG(); startTimer(); }, 300);
+      updVitals();
+      updTimer();
+      syncToGoogleSheet();
     }
 
-    function openMission(n) { document.getElementById('modal-' + n).classList.remove('hidden'); snd('beep'); if (G.stamps[n - 1]) { const inp = document.getElementById('ci' + n); if (inp) inp.disabled = true; setMsg(n, '✅ 이미 치료 완료된 장기입니다!', 'ok'); } }
+    function openMission(n) {
+      document.getElementById('modal-' + n).classList.remove('hidden');
+      snd('beep');
+      if (G.stamps[n - 1]) {
+        const inp = document.getElementById('ci' + n);
+        if (inp) inp.disabled = true;
+        setMsg(n, '✅ 이미 치료 완료된 장기입니다!', 'ok');
+      }
+    }
     function openFinalMission() { document.getElementById('modal-final').classList.remove('hidden'); snd('alarm'); }
-    function closeModal(id) { if (id === 'modal-teacher' && tDashInterval) { clearInterval(tDashInterval); tDashInterval = null; } document.getElementById(id).classList.add('hidden'); }
+    function closeModal(id) {
+      if (id === 'modal-teacher' && tDashInterval) { clearInterval(tDashInterval); tDashInterval = null; }
+      const el = document.getElementById(id);
+      if (el) el.classList.add('hidden');
+    }
     function closeSuccess() { closeModal('modal-success'); checkAllStamps(); }
-    function confirmResetTeam() { if (confirm('처음 화면으로 돌아가시겠습니까?\n(현재 진행 상황이 쟁제됩니다)')) resetGame(); }
+    function confirmResetTeam() { if (confirm('처음 화면으로 돌아가시겠습니까?
+(현재 진행 상황이 해제됩니다)')) resetGame(); }
 
     // ============================================================
-    // ★ 힌트 탭 전환 (핵심 버그 수정)
+    // 💡 힌트 탭 전환 & 세부 열람 카운팅 (요구사항 4 완벽 해결)
     // ============================================================
+    // 1) 탭 전환: 화면 전환만 수행하며 힌트 수를 절대 차감하지 않음
     function switchChartTab(n, tab) {
       const codeEl = document.getElementById('tab-content-' + n + '-code');
       const hintEl = document.getElementById('tab-content-' + n + '-hint');
@@ -1889,25 +2107,33 @@
       if (tab === 'code') {
         codeEl.classList.remove('hidden');
         hintEl.classList.add('hidden');
-        if (codeBtnEl) { codeBtnEl.classList.add('active'); }
-        if (hintBtnEl) { hintBtnEl.classList.remove('active'); }
+        if (codeBtnEl) codeBtnEl.classList.add('active');
+        if (hintBtnEl) hintBtnEl.classList.remove('active');
       } else {
         codeEl.classList.add('hidden');
         hintEl.classList.remove('hidden');
-        if (hintBtnEl) { hintBtnEl.classList.add('active'); }
-        if (codeBtnEl) { codeBtnEl.classList.remove('active'); }
-        // 힌트 열람 시 횟수 증가 (처음 열람할 때만)
-        const hKey = 'hv' + n;
-        if (!G.openedHints[hKey]) {
-          G.openedHints[hKey] = true;
-          G.hintCount = (G.hintCount || 0) + 1;
-          saveLS();
-          sendBC('HINT_USED', { n, total: G.hintCount });
-        }
+        if (hintBtnEl) hintBtnEl.classList.add('active');
+        if (codeBtnEl) codeBtnEl.classList.remove('active');
       }
     }
 
-    function tHint(id) { const el = document.getElementById(id), ic = document.getElementById(id + '-ic'); if (!el) return; el.classList.toggle('open'); if (ic) ic.textContent = el.classList.contains('open') ? '▲' : '▼'; }
+    // 2) 세부 힌트 아코디언 토글: 실제 문제풀이/암호 힌트를 열람했을 때만 1회 카운팅
+    function tHint(id) {
+      const el = document.getElementById(id), ic = document.getElementById(id + '-ic');
+      if (!el) return;
+      const willOpen = !el.classList.contains('open');
+      el.classList.toggle('open');
+      if (ic) ic.textContent = willOpen ? '▲' : '▼';
+
+      if (willOpen && !G.openedHints[id]) {
+        G.openedHints[id] = true;
+        G.hintCount = (G.hintCount || 0) + 1;
+        saveLS();
+        toast('💡 힌트 열람! (누적 사용: ' + G.hintCount + '회)', 'info');
+        sendBC('HINT_USED', { id, total: G.hintCount });
+        syncToGoogleSheet();
+      }
+    }
 
     function setMsg(n, txt, type) { const el = document.getElementById('cm' + n); if (!el) return; el.classList.remove('hidden'); el.className = 'text-center text-sm mb-3 font-bold ' + (type === 'ok' ? 'text-green-400' : 'text-red-400'); el.innerHTML = txt; }
     function submitCode(n) {
@@ -1923,29 +2149,55 @@
       if (ANS.f(val)) {
         inp.disabled = true;
         G.finalCompleted = true;
-        // 관리자 대시보드용 완치 시간 저장
         const tot = 35 * 60 - G.sec;
         const fm = String(Math.floor(tot / 60)).padStart(2, '0'), fs = String(tot % 60).padStart(2, '0');
         G.clearTimeStr = fm + ':' + fs;
         saveLS();
+        syncToGoogleSheet();
         closeModal('modal-final'); snd('fanfare'); startFW(); setTimeout(showCert, 2000);
       }
       else { shakeEl(inp); msg.classList.remove('hidden'); msg.className = 'text-center text-sm mb-3 text-red-400 font-bold'; msg.innerHTML = '❌ 오답! 포스터를 다시 확인하세요.'; snd('err'); }
     }
     function shakeEl(el) { el.classList.add('err-shake'); setTimeout(() => el.classList.remove('err-shake'), 600); }
 
+    function renderStamps() {
+      G.stamps.forEach((st, idx) => {
+        const n = idx + 1;
+        const slot = document.getElementById(SIDS[idx]);
+        const card = document.getElementById('mc' + n);
+        const badge = document.getElementById('badge-' + n);
+        const inp = document.getElementById('ci' + n);
+        if (slot) {
+          if (st) slot.classList.add('active');
+          else slot.classList.remove('active');
+        }
+        if (card) {
+          if (st) card.classList.add('card-complete');
+          else card.classList.remove('card-complete');
+        }
+        if (badge) {
+          if (st) { badge.className = 'status-badge badge-success'; badge.innerHTML = '✓ 치료완료'; }
+          else { badge.className = 'status-badge badge-danger'; badge.innerHTML = '● 위독'; }
+        }
+        if (inp && st) inp.disabled = true;
+      });
+      const cnt = G.stamps.filter(Boolean).length;
+      const sc = document.getElementById('stamp-count');
+      if (sc) sc.textContent = cnt;
+      checkAllStamps();
+      updVitals();
+    }
+
     function approveStamp(n) {
       const idx = n - 1; if (G.stamps[idx]) return; G.stamps[idx] = true;
-      const slot = document.getElementById(SIDS[idx]); if (slot) slot.classList.add('active');
-      const card = document.getElementById('mc' + n); if (card) card.classList.add('card-complete');
-      const badge = document.getElementById('badge-' + n); if (badge) { badge.className = 'status-badge badge-success'; badge.innerHTML = '✓ 치료완료'; }
-      const cnt = G.stamps.filter(Boolean).length;
-      const sc = document.getElementById('stamp-count'); if (sc) sc.textContent = cnt;
-      snd('stamp'); setTimeout(() => snd('ok'), 200); updVitals();
+      renderStamps();
+      snd('stamp'); setTimeout(() => snd('ok'), 200);
       document.getElementById('s-icon').innerHTML = SICONS[idx];
       document.getElementById('s-organ').textContent = SNAMES[idx] + ' 치료 완료!';
       document.getElementById('modal-success').classList.remove('hidden');
-      saveLS(); sendBC('STAMP', { n, stamps: G.stamps });
+      saveLS();
+      sendBC('STAMP', { n, stamps: G.stamps });
+      syncToGoogleSheet();
       if (G.hbInt) { clearInterval(G.hbInt); G.hbInt = setInterval(() => { if (!G.paused) snd('hb'); }, getHBI()); }
     }
     function checkAllStamps() { if (G.stamps.every(Boolean)) { document.getElementById('final-locked').classList.add('hidden'); document.getElementById('final-unlocked').classList.remove('hidden'); snd('alarm'); setTimeout(() => snd('alarm'), 600); } }
@@ -1970,13 +2222,14 @@
       if (hintCount <= 3 && mins <= 35) return { grade: 'B', label: 'B-CLASS', color: '#22c55e', css: 'cert-grade-b', msg: '시간 내 치료 성공! 좀 더 노력하면 A-CLASS도 엄두!' };
       return { grade: 'C', label: 'C-CLASS', color: '#06b6d4', css: 'cert-grade-c', msg: '해냈다! K-군 완치 성공! 다음엔 힌트 없이 도전해보자!' };
     }
+
     function showCert() {
       const tot = 35 * 60 - G.sec;
       const mm = String(Math.floor(tot / 60)).padStart(2, '0'), ss = String(tot % 60).padStart(2, '0');
       const g = calcGrade(G.hintCount || 0, tot);
       const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       set('cert-leader', G.player.leader || '─');
-      set('cert-team', G.player.members.join(', ') || '─');
+      set('cert-team', (Array.isArray(G.player.members) ? G.player.members.join(', ') : G.player.members) || '─');
       set('cert-class', G.player.cls + ' ' + G.player.grp + '모둠');
       set('cert-time', mm + '분 ' + ss + '초');
       set('cert-hint-count', G.hintCount || 0);
@@ -1988,6 +2241,70 @@
       if (gradeMsg) gradeMsg.textContent = g.msg;
       document.getElementById('modal-complete').classList.remove('hidden');
       sendBC('COMPLETE', { time: mm + ':' + ss, grade: g.grade });
+    }
+
+    // ============================================================
+    // 💾 인증서 고화질 이미지(PNG) 저장 기능 (요구사항 2)
+    // ============================================================
+    function downloadCertImage() {
+      const certEl = document.querySelector('#modal-complete .certificate');
+      if (!certEl) return;
+      toast('인증서 이미지를 생성하는 중입니다...', 'info');
+
+      if (typeof html2canvas === 'undefined') {
+        toast('이미지 생성 모듈을 불러올 수 없어 인쇄 모드로 전환합니다.', 'info');
+        window.print();
+        return;
+      }
+
+      html2canvas(certEl, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: '#0a1020',
+        logging: false
+      }).then(canvas => {
+        const link = document.createElement('a');
+        const leader = document.getElementById('cert-leader')?.textContent || '의사';
+        const clsText = document.getElementById('cert-class')?.textContent || '2학년';
+        link.download = '골든타임_완치인증서_' + clsText.replace(/\s+/g, '_') + '_' + leader + '.png';
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+        toast('인증서 이미지가 정상 다운로드되었습니다! 🎉', 'ok');
+      }).catch(err => {
+        console.error('인증서 생성 실패:', err);
+        toast('인증서 저장 중 오류가 발생하여 인쇄 창을 엽니다.', 'err');
+        window.print();
+      });
+    }
+
+    // 교사 대시보드에서 특정 모둠의 인증서 열람/저장
+    function viewTeacherCert(g) {
+      const s = grpStates[g];
+      if (!s) return;
+      const tot = 35 * 60 - (s.sec !== undefined ? s.sec : 0);
+      let mm = '25', ss = '00';
+      if (s.clearTimeStr && s.clearTimeStr.includes(':')) {
+        const parts = s.clearTimeStr.split(':');
+        mm = parts[0]; ss = parts[1];
+      }
+      const elapsedSec = s.clearTimeStr ? (parseInt(mm) * 60 + parseInt(ss)) : tot;
+      const gObj = calcGrade(s.hintCount || 0, elapsedSec);
+
+      const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
+      set('cert-leader', s.leader || '─');
+      set('cert-team', s.members || '─');
+      set('cert-class', (s.cls || ('2학년 ' + currentTeacherClass + '반')) + ' ' + g + '모둠');
+      set('cert-time', s.clearTimeStr ? (s.clearTimeStr + ' (완치)') : '완치 완료');
+      set('cert-hint-count', s.hintCount || 0);
+
+      const gradeBanner = document.getElementById('cert-grade-banner');
+      if (gradeBanner) gradeBanner.className = 'cert-grade-banner ' + gObj.css;
+      const gradeLabel = document.getElementById('cert-grade-label');
+      if (gradeLabel) { gradeLabel.textContent = gObj.label; gradeLabel.style.color = gObj.color; }
+      const gradeMsg = document.getElementById('cert-grade-msg');
+      if (gradeMsg) gradeMsg.textContent = gObj.msg;
+
+      document.getElementById('modal-complete').classList.remove('hidden');
     }
 
     function startFW() {
@@ -2005,7 +2322,7 @@
     function openTeacherLogin() { document.getElementById('modal-tlogin').classList.remove('hidden'); document.getElementById('tpw').value = ''; document.getElementById('tpw-err').classList.add('hidden'); setTimeout(() => document.getElementById('tpw').focus(), 100); }
 
     // ============================================================
-    // 🔒 [교사용 보안 인증] 개발자 도구 검색 시 평문이 노출되지 않도록 해시 및 바이트 시그니처 검증
+    // 🔒 [교사용 보안 인증]
     // ============================================================
     let tDashInterval = null;
 
@@ -2014,7 +2331,6 @@
       const rawVal = (el ? el.value : '').trim();
       const cleanVal = rawVal.toLowerCase();
 
-      // 1) SHA-256 해시 검증
       let h = '';
       try {
         if (window.crypto && crypto.subtle) {
@@ -2023,7 +2339,6 @@
         }
       } catch (e) { }
 
-      // 2) 아스키 바이트 서명 검증 [109, 105, 110, 97, 104] (평문 노출 없이 모든 환경 호환)
       const _s = [109, 105, 110, 97, 104];
       const isByteMatch = cleanVal.length === _s.length && _s.every((c, i) => cleanVal.charCodeAt(i) === c);
       const isHashMatch = (h === "ad5f52f58ed6ec6e7a641f2416f347674ac5933470079f2a18bc6269b1e80796");
@@ -2041,21 +2356,69 @@
       }
     }
 
+    // ============================================================
+    // 👨‍⚕️ 교사 관제 대시보드 (반 선택 & 구글 시트 동기화)
+    // ============================================================
     function openTDash() {
       document.getElementById('modal-teacher').classList.remove('hidden');
+      updateGasStatusBadge();
 
-      // 1. 현재 학급 표시 업데이트
+      // 현재 접속 학생의 반이 있다면 그 반으로 기본 선택, 없으면 1반
+      const studentClsNum = Number(String(G.player.cls || '').replace(/[^0-9]/g, ''));
+      selectTeacherClass(studentClsNum || currentTeacherClass || 1);
+
+      sendBC('REQ_STATE');
+
+      // 1초마다 진행 시간 리프레시 + 8초마다 구글 시트 자동 폴링
+      if (tDashInterval) clearInterval(tDashInterval);
+      let tickCount = 0;
+      tDashInterval = setInterval(() => {
+        tickCount++;
+        if (G.player.grp && grpStates[G.player.grp] && !grpStates[G.player.grp].clearTimeStr) {
+          grpStates[G.player.grp].sec = G.sec;
+          grpStates[G.player.grp].hintCount = G.hintCount || 0;
+        }
+        renderTGroups();
+
+        // 8초마다 구글 시트에서 최신 현황 자동 동기화
+        if (tickCount % 8 === 0 && GAS_WEB_APP_URL) {
+          fetchFromGoogleSheet(false);
+        }
+      }, 1000);
+    }
+
+    function selectTeacherClass(cls) {
+      currentTeacherClass = Number(cls) || 1;
+      for (let c = 1; c <= 6; c++) {
+        const btn = document.getElementById('t-btn-cls-' + c);
+        if (btn) {
+          if (c === currentTeacherClass) {
+            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400';
+          } else {
+            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700';
+          }
+        }
+      }
       updateClassBadge();
+      loadClassData(currentTeacherClass);
+      renderTGroups();
+      if (GAS_WEB_APP_URL) {
+        fetchFromGoogleSheet(false);
+      }
+    }
 
-      // 2. 로컬 스토리지에 보관된 모둠 데이터 로드
+    function loadClassData(cls) {
       for (let g = 1; g <= 6; g++) {
         try {
-          const d = localStorage.getItem('esc_' + g);
+          const d = localStorage.getItem('esc_c' + cls + '_g' + g) || (cls === Number(String(G.player.cls||'').replace(/[^0-9]/g,'')) ? localStorage.getItem('esc_' + g) : null);
           if (d) grpStates[g] = Object.assign(grpStates[g] || {}, JSON.parse(d));
+          else if (!grpStates[g] || grpStates[g].cls !== '2학년 ' + cls + '반') {
+            grpStates[g] = { cls: '2학년 ' + cls + '반', grp: g, stamps: [false, false, false, false], hintCount: 0, sec: 35 * 60 };
+          }
         } catch (e) { }
       }
-      if (G.player.grp) {
-        grpStates[G.player.grp] = {
+      if (G.player.grp && (G.player.cls === ('2학년 ' + cls + '반') || Number(String(G.player.cls||'').replace(/[^0-9]/g,'')) === cls)) {
+        grpStates[G.player.grp] = Object.assign(grpStates[G.player.grp] || {}, {
           cls: G.player.cls,
           grp: G.player.grp,
           leader: G.player.leader,
@@ -2063,39 +2426,17 @@
           stamps: G.stamps,
           hintCount: G.hintCount || 0,
           clearTimeStr: G.clearTimeStr || null,
+          finalCompleted: G.finalCompleted,
           sec: G.sec,
           updatedAt: Date.now()
-        };
+        });
       }
-
-      // 3. 브로드캐스트 상태 요청
-      sendBC('REQ_STATE');
-      renderTGroups();
-
-      // 4. 실시간 진행 시간 자동 갱신 (1초마다 카드 경과 시간 리프레시)
-      if (tDashInterval) clearInterval(tDashInterval);
-      tDashInterval = setInterval(() => {
-        if (G.player.grp && grpStates[G.player.grp] && !grpStates[G.player.grp].clearTimeStr) {
-          grpStates[G.player.grp].sec = G.sec;
-          grpStates[G.player.grp].hintCount = G.hintCount || 0;
-        }
-        renderTGroups();
-      }, 1000);
     }
 
     function updateClassBadge() {
-      const curCls = G.player.cls || (function () {
-        for (let g = 1; g <= 6; g++) {
-          try {
-            const d = localStorage.getItem('esc_' + g);
-            if (d) { const p = JSON.parse(d); if (p.cls) return p.cls; }
-          } catch (e) { }
-        }
-        return '';
-      })();
       const badge = document.getElementById('t-class-badge');
       if (badge) {
-        badge.textContent = curCls ? ('🏥 2학년 ' + curCls + '반 실시간 관제') : '🏥 2학년 전체 관제';
+        badge.textContent = '🏥 2학년 ' + currentTeacherClass + '반 실시간 관제';
       }
     }
 
@@ -2108,21 +2449,18 @@
       for (let g = 1; g <= 6; g++) {
         const s = grpStates[g];
         const cnt = s && s.stamps ? s.stamps.filter(Boolean).length : 0;
-        const isCleared = !!(s && (s.clearTimeStr || s.finalCompleted));  // 최종 암호 해독까지 완료해야 완치
+        const isCleared = !!(s && (s.clearTimeStr || s.finalCompleted));
         const isConnected = !!(s && (s.leader || s.updatedAt));
 
-        // 장기별 스탬프 아이콘
         const si = ['🧪', '🫀', '🫁', '🫘'].map((ic, i) =>
           '<span style="opacity:' + (s && s.stamps && s.stamps[i] ? 1 : 0.2) + ';font-size:1.2rem;" title="차트 0' + (i + 1) + '">' + ic + '</span>'
         ).join(' ');
 
-        // 💡 힌트 사용 횟수
         const hintBadge = '<div class="mt-2 text-xs flex items-center justify-between bg-slate-900/60 px-2 py-1 rounded border border-slate-800">' +
           '<span class="text-amber-400 font-bold flex items-center gap-1">💡 힌트 사용:</span>' +
           '<span class="font-bold text-white bg-slate-800 px-2 py-0.5 rounded">' + (s && s.hintCount ? s.hintCount : 0) + '회</span>' +
           '</div>';
 
-        // ⏱ 각 팀별 진행 시간 표시 (핵심 요구사항!)
         let timeBadge = '';
         let statusBadge = '';
 
@@ -2133,8 +2471,8 @@
         } else if (isCleared) {
           statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700">🏆 완치 완료</span>';
           timeBadge = '<div class="mt-2 text-xs text-green-300 font-bold orb flex flex-col gap-1 bg-green-950/40 p-2 rounded border border-green-800/50">' +
-            '<div class="flex justify-between items-center"><span class="text-green-400">⏱ 최종 소요 시간:</span><span class="text-sm font-black text-white">' + (s.clearTimeStr || '완료') + '</span></div>' +
-            '<div class="text-[10px] text-green-400/80 text-right">환자 생체 반응 완벽 회복</div></div>';
+            '<div class="flex justify-between items-center"><span class="text-green-400">⏱ 완치 소요 시간:</span><span class="text-sm font-black text-white">' + (s.clearTimeStr || '완료') + '</span></div>' +
+            '<div class="text-[10px] text-green-400/80 text-right">환자 생체 반응 정상 회복</div></div>';
         } else {
           statusBadge = '<span class="px-2 py-0.5 rounded text-[11px] font-bold bg-cyan-950 text-cyan-300 border border-cyan-700 animate-pulse">🟢 작전 진행 중</span>';
           const curSec = s.sec !== undefined ? s.sec : (g === G.player.grp ? G.sec : 35 * 60);
@@ -2149,13 +2487,18 @@
             '<div class="flex justify-between items-center text-[11px] text-amber-400"><span>⏳ 남은 시간:</span><span>' + rm + '분 ' + (rs < 10 ? '0' : '') + rs + '초</span></div></div>';
         }
 
+        // 완치 인증서 보기 버튼 (교사 전용 저장)
+        const certBtn = isCleared
+          ? '<button onclick="viewTeacherCert(' + g + ')" class="w-full mt-2 py-1.5 px-2 rounded bg-amber-950/80 border border-amber-600 text-amber-300 text-xs font-bold hover:bg-amber-900 transition-all flex items-center justify-center gap-1 shadow-sm">📜 완치 인증서 보기 / 저장</button>'
+          : '';
+
         // 모둠별 개별 리셋 버튼
         const resetBtn = isConnected
-          ? '<button onclick="resetGroupData(' + g + ')" class="w-full mt-2.5 py-1.5 px-2 rounded bg-red-950/60 border border-red-800 text-red-300 text-xs font-bold hover:bg-red-900 transition-all flex items-center justify-center gap-1 shadow-sm">🔄 이 팀 데이터 리셋</button>'
+          ? '<button onclick="resetGroupData(' + g + ')" class="w-full mt-1.5 py-1 px-2 rounded bg-red-950/60 border border-red-800 text-red-300 text-[11px] font-bold hover:bg-red-900 transition-all flex items-center justify-center gap-1">🔄 이 팀 데이터 리셋</button>'
           : '';
 
         const leaderName = s && s.leader ? s.leader : (isConnected ? '모둠원' : '미접속');
-        const memberStr = s && s.members ? '<div class="text-[11px] text-slate-400 truncate mb-1">팀원: ' + s.members + '</div>' : '';
+        const memberStr = s && s.members ? '<div class="text-[11px] text-slate-400 truncate mb-1">팀원: ' + (Array.isArray(s.members) ? s.members.join(', ') : s.members) + '</div>' : '';
 
         htmlStr += `
       <div class="teacher-card p-3.5 rounded-xl bg-[#0f1628]/90 border border-cyan-900/40 shadow-lg flex flex-col justify-between">
@@ -2165,8 +2508,8 @@
             ${statusBadge}
           </div>
           <div class="text-white text-sm font-bold mb-0.5 truncate flex items-center gap-1.5">
-            <span>${s && s.cls ? s.cls + '반 ' : ''}</span>
-            <span class="text-cyan-200">${leaderName}</span>
+            <span>2학년 ${currentTeacherClass}반</span>
+            <span class="text-cyan-200">· ${leaderName}</span>
           </div>
           ${memberStr}
           <div class="flex items-center justify-between mt-2 mb-1 bg-slate-950/50 p-1.5 rounded">
@@ -2177,7 +2520,10 @@
           ${hintBadge}
           ${timeBadge}
         </div>
-        ${resetBtn}
+        <div>
+          ${certBtn}
+          ${resetBtn}
+        </div>
       </div>
     `;
       }
@@ -2186,14 +2532,19 @@
 
     // 교사 관리자: 특정 모둠 데이터 리셋
     function resetGroupData(g) {
-      if (!confirm(g + '모둠의 저장된 모든 데이터(치료 스탬프, 힌트 수, 진행 시간)를 초기화하시겠습니까?')) return;
-      try { localStorage.removeItem('esc_' + g); } catch (e) { }
+      if (!confirm(currentTeacherClass + '반 ' + g + '모둠의 저장된 모든 데이터(스탬프, 힌트 수, 진행 시간)를 초기화하시겠습니까?')) return;
+      try {
+        localStorage.removeItem('esc_c' + currentTeacherClass + '_g' + g);
+        localStorage.removeItem('esc_' + g);
+      } catch (e) { }
       delete grpStates[g];
-      if (G.player.grp === g) {
+      if (G.player.grp === g && String(G.player.cls).includes(currentTeacherClass + '반')) {
         G.stamps = [false, false, false, false];
         G.hintCount = 0;
+        G.openedHints = {};
         G.sec = 35 * 60;
         G.clearTimeStr = null;
+        G.finalCompleted = false;
         updTimer();
         renderStamps();
         saveLS();
@@ -2203,23 +2554,30 @@
       toast(g + '모둠 데이터가 성공적으로 초기화되었습니다.', 'ok');
     }
 
-    // 교사 관리자: 전체 모둠 일괄 리셋 (수업 초기화)
+    // 교사 관리자: 현재 선택 학급 모둠 일괄 리셋 (수업 초기화)
     function resetAllGroups() {
-      if (!confirm('⚠️ 전체 1~6모둠의 진행 상황과 힌트 기록을 모두 초기화하시겠습니까?\n(새로운 수업이나 반 변경 시 사용합니다)')) return;
+      if (!confirm('⚠️ 2학년 ' + currentTeacherClass + '반의 1~6모둠 진행 상황과 힌트 기록을 모두 초기화하시겠습니까?\n(새로운 수업이나 반 변경 시 사용합니다)')) return;
       for (let g = 1; g <= 6; g++) {
-        try { localStorage.removeItem('esc_' + g); } catch (e) { }
+        try {
+          localStorage.removeItem('esc_c' + currentTeacherClass + '_g' + g);
+          localStorage.removeItem('esc_' + g);
+        } catch (e) { }
         delete grpStates[g];
       }
-      G.stamps = [false, false, false, false];
-      G.hintCount = 0;
-      G.sec = 35 * 60;
-      G.clearTimeStr = null;
-      updTimer();
-      renderStamps();
-      saveLS();
+      if (G.player.grp && String(G.player.cls).includes(currentTeacherClass + '반')) {
+        G.stamps = [false, false, false, false];
+        G.hintCount = 0;
+        G.openedHints = {};
+        G.sec = 35 * 60;
+        G.clearTimeStr = null;
+        G.finalCompleted = false;
+        updTimer();
+        renderStamps();
+        saveLS();
+      }
       sendBC('RESET_ALL');
       renderTGroups();
-      toast('모든 모둠의 데이터가 전체 초기화되었습니다.', 'ok');
+      toast(currentTeacherClass + '반의 모든 모둠 데이터가 초기화되었습니다.', 'ok');
     }
 
     function tCtrl(a) { if (a === 'pause') togglePause(); if (a === 'add5') { G.sec = Math.min(G.sec + 300, 99 * 60); updTimer(); } if (a === 'reset') { G.sec = 35 * 60; updTimer(); } sendBC('TIMER_CTRL', { a }); }
@@ -2230,6 +2588,7 @@
 
     function resetGame() {
       G.stamps = [false, false, false, false]; G.sec = 35 * 60; G.running = false; G.paused = false;
+      G.hintCount = 0; G.openedHints = {}; G.finalCompleted = false; G.clearTimeStr = null;
       if (G.timerInt) clearInterval(G.timerInt); if (G.hbInt) clearInterval(G.hbInt); if (G.ecgAnim) cancelAnimationFrame(G.ecgAnim);
       document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.add('hidden'));
       const to = document.getElementById('modal-timeout'); if (to) to.remove();
@@ -2250,17 +2609,26 @@
 
     function saveLS() {
       try {
-        localStorage.setItem('esc_' + G.player.grp, JSON.stringify({
+        const clsNum = String(G.player.cls || '').replace(/[^0-9]/g, '');
+        const data = {
           cls: G.player.cls,
           grp: G.player.grp,
           leader: G.player.leader,
           members: G.player.members,
           stamps: G.stamps,
           hintCount: G.hintCount || 0,
+          openedHints: G.openedHints || {},
           clearTimeStr: G.clearTimeStr || null,
           finalCompleted: G.finalCompleted || false,
-          sec: G.sec
-        }));
+          sec: G.sec,
+          updatedAt: Date.now()
+        };
+        if (clsNum && G.player.grp) {
+          localStorage.setItem('esc_c' + clsNum + '_g' + G.player.grp, JSON.stringify(data));
+        }
+        if (G.player.grp) {
+          localStorage.setItem('esc_' + G.player.grp, JSON.stringify(data));
+        }
       } catch (e) { }
     }
 
@@ -2269,127 +2637,30 @@
 
     document.addEventListener('click', () => { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); }, { passive: true });
 
-    // ============================================================
-    // 💡 [hints.js] 연동 힌트 동적 렌더링 시스템
-    // ============================================================
-
-    const DEFAULT_HINTS = {
-      chart1: {
-        step1: {
-          title: "💡 문제풀이 힌트",
-          lines: [
-            "• <span class=\"text-cyan-400 font-bold\">갈림길 이동 순서:</span>",
-            "• (1,3) 식도 ➔ (3,7) 위 ➔ (6,4) 샘창자 ➔ (9,2) 이자 ➔ (9,6) 작은창자 ➔ (8,9) 큰창자 순으로 이동합니다."
-          ]
-        },
-        step2: {
-          title: "🔑 암호 힌트",
-          lines: [
-            "• 바른 경로를 따라 통과하며 수집한 알파벳은 순서대로 <span class=\"text-amber-400 font-bold orb\">VPQTLS</span>입니다.",
-            "• 영문 키보드 자판을 한글로 치환(<span class=\"text-cyan-400 font-bold\">V➔ㅍ, P➔ㅔ, Q➔ㅂ, T➔ㅅ, L➔ㅣ, S➔ㄴ</span>)해 보세요.",
-            "• 위에서 분비되어 단백질을 1차 분해하는 대표 소화효소의 이름(<span class=\"text-green-400 font-bold\">한글 2글자</span>)이 완성됩니다."
-          ]
+    // 마지막 로그인 정보 자동 복원
+    window.addEventListener('DOMContentLoaded', () => {
+      try {
+        const lastLogin = localStorage.getItem('esc_last_login');
+        if (lastLogin) {
+          const p = JSON.parse(lastLogin);
+          if (p.cls) document.getElementById('login-class').value = p.cls;
+          if (p.grp) {
+            const rad = document.querySelector('input[name="group"][value="' + p.grp + '"]');
+            if (rad) {
+              rad.checked = true;
+              const lbl = rad.closest('.grp-lbl');
+              if (lbl) {
+                document.querySelectorAll('.grp-lbl').forEach(l => { l.classList.remove('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400'); l.classList.add('border-slate-700'); });
+                lbl.classList.add('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400');
+                lbl.classList.remove('border-slate-700');
+              }
+            }
+          }
+          if (p.leader) document.getElementById('login-leader').value = p.leader;
+          if (p.members) document.getElementById('login-members').value = Array.isArray(p.members) ? p.members.join(', ') : p.members;
         }
-      },
-      chart2: {
-        step1: {
-          title: "💡 문제풀이 힌트",
-          lines: [
-            "• <span class=\"text-red-400 font-bold\">온몸 순환 5단계:</span> 좌심실(15) ➔ 대동맥(3) ➔ 온몸(20) ➔ 대정맥(4) ➔ 우심방(6)",
-            "• <span class=\"text-cyan-400 font-bold\">허파 순환 5단계:</span> 우심실(9) ➔ 폐동맥(1) ➔ 폐(10) ➔ 폐정맥(2) ➔ 좌심방(5)"
-          ]
-        },
-        step2: {
-          title: "🔑 암호 힌트",
-          lines: [
-            "• <span class=\"text-amber-400 font-bold\">코드 A (온몸 순환):</span> 홀수 번째인 1, 3, 5단계 번호의 합산입니다 (15 + 20 + 6 = <span class=\"text-white font-bold orb\">41</span>).",
-            "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold orb\">29</span>).",
-            "• 최종 코드는 앞 2자리(A)와 뒤 2자리(B)를 연결한 <span class=\"text-green-400 font-bold orb text-base\">4자리 숫자</span>입니다."
-          ]
-        }
-      },
-      chart3: {
-        step1: {
-          title: "💡 문제풀이 힌트",
-          lines: [
-            "• 미션지 우측 하단 점선을 뒤로 접어 벽면 <span class=\"text-cyan-400 font-bold\">[호흡기 포스터]</span>의 반쪽 QR과 정확히 겹친 뒤 스캔하세요.",
-            "• 폐포와 모세혈관 사이에서 기체가 농도 차에 의해 이동하는 2글자 핵심 현상은 <span class=\"text-amber-400 font-bold\">확산</span>입니다."
-          ]
-        },
-        step2: {
-          title: "🔑 암호 힌트",
-          lines: [
-            "• <span class=\"text-amber-400 font-bold\">1~2번 자리:</span> '확'의 한글 획수(8) + '산'의 한글 획수(5) ➔ <span class=\"text-white font-bold orb\">85</span>",
-            "• <span class=\"text-cyan-400 font-bold\">3~4번 자리:</span> 산소 기체 분자식(O₂)의 아래 첨자(2) + 이산화탄소(CO₂) 속 산소 원자 수(2) ➔ <span class=\"text-white font-bold orb\">22</span>",
-            "• 4자리 숫자를 차례대로 결합한 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>를 입력하세요."
-          ]
-        }
-      },
-      chart4: {
-        step1: {
-          title: "💡 문제풀이 힌트",
-          lines: [
-            "• 사구체에서 여과되지 않는 물질(여과액 0.00%인 <span class=\"text-red-400 font-bold\">혈구, 단백질</span>)에 ❌표 하세요.",
-            "• 세뇨관에서 전량 재흡수되는 물질(오줌 0.00%인 <span class=\"text-amber-400 font-bold\">포도당, 아미노산</span>)에 ❌표 하세요."
-          ]
-        },
-        step2: {
-          title: "🔑 암호 힌트",
-          lines: [
-            "• 소거 후 남는 물질 중 번호가 홀수인 것은 <span class=\"text-amber-400 font-bold\">① 요소</span>와 <span class=\"text-cyan-400 font-bold\">⑤ 물</span>입니다.",
-            "• ① 요소의 고유 코드(37)와 ⑤ 물의 고유 코드(09)를 순서대로 이어 붙인 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>가 정답입니다."
-          ]
-        }
-      }
-    };
-    function initHints() {
-      const hints = window.GAME_HINTS || DEFAULT_HINTS;
-
-      function renderChartHints(chartKey, containerId, prefix) {
-        const cData = hints[chartKey] || DEFAULT_HINTS[chartKey];
-        const container = document.getElementById(containerId);
-        if (!container || !cData) return;
-
-        let htmlStr = '';
-
-        if (cData.step1) {
-          const idA = prefix + 'a';
-          const linesA = (cData.step1.lines || []).map(l => '<p>' + l + '</p>').join('');
-          htmlStr += `
-        <button onclick="tHint('${idA}')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#0f1628]/60 border border-amber-900/30 text-left hover:border-amber-500/40 transition-all">
-          <span class="text-amber-400 text-sm font-bold">${cData.step1.title || '💡 1단계 힌트'}</span><span id="${idA}-ic" class="text-amber-400">▼</span>
-        </button>
-        <div id="${idA}" class="hint-content">
-          <div class="px-4 py-3 bg-amber-900/10 rounded-b-xl border border-amber-900/20 text-sm text-slate-300 space-y-1">
-            ${linesA}
-          </div>
-        </div>
-      `;
-        }
-
-        if (cData.step2) {
-          const idB = prefix + 'b';
-          const linesB = (cData.step2.lines || []).map(l => '<p>' + l + '</p>').join('');
-          htmlStr += `
-        <button onclick="tHint('${idB}')" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-[#0f1628]/60 border border-cyan-900/30 text-left hover:border-cyan-500/40 transition-all">
-          <span class="text-cyan-400 text-sm font-bold">${cData.step2.title || '💡 2단계 힌트'}</span><span id="${idB}-ic" class="text-cyan-400">▼</span>
-        </button>
-        <div id="${idB}" class="hint-content">
-          <div class="px-4 py-3 bg-cyan-900/10 rounded-b-xl border border-cyan-900/20 text-sm text-slate-300 space-y-1">
-            ${linesB}
-          </div>
-        </div>
-      `;
-        }
-
-        container.innerHTML = htmlStr;
-      }
-
-      renderChartHints('chart1', 'hints-chart1', 'h1');
-      renderChartHints('chart2', 'hints-chart2', 'h2');
-      renderChartHints('chart3', 'hints-chart3', 'h3');
-      renderChartHints('chart4', 'hints-chart4', 'h4');
-    }
+      } catch (e) { }
+    });
 
     initHints();
     updTimer(); updVitals();
