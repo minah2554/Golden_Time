@@ -13,8 +13,9 @@
  *    - 다음 사용자 권한으로 실행: 나 (소유자 이메일)
  *    - 액세스 권한: 모든 사용자 (Anyone)  <-- 중요! (로그인 없이 전송 가능)
  * 7. [배포] 클릭 후 승인 절차를 진행합니다.
- * 8. 생성된 [웹 앱 URL] (예: https://script.google.com/macros/s/.../exec)을 복사하여
- *    방탈출 웹앱의 교사 대시보드 [구글 시트 연동 설정]에 붙여넣으시면 완료됩니다!
+ * 8. 생성된 [웹 앱 URL]:
+ *    https://script.google.com/macros/s/AKfycbxvxvzZ3kFKz4mAfHlL8jFYrrvCvvw8JoKaO0CU89_-JTxXNnSKc6i5-ivG8M72DrqB/exec
+ *    (웹앱 기본 연동 주소로 자동 등록 완료)
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";

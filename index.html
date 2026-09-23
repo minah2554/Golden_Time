@@ -1873,7 +1873,8 @@
     // ============================================================
     // 🌐 구글 스프레드시트 실시간 관제 연동
     // ============================================================
-    let GAS_WEB_APP_URL = localStorage.getItem('gas_web_app_url') || '';
+    const DEFAULT_GAS_URL = 'https://script.google.com/macros/s/AKfycbxvxvzZ3kFKz4mAfHlL8jFYrrvCvvw8JoKaO0CU89_-JTxXNnSKc6i5-ivG8M72DrqB/exec';
+    let GAS_WEB_APP_URL = localStorage.getItem('gas_web_app_url') || DEFAULT_GAS_URL;
     let currentTeacherClass = 1;
 
     function saveGasUrl() {
