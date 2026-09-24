@@ -27,7 +27,7 @@ window.GAME_HINTS = {
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• 바른 경로를 따라 통과하며 수집한 알파벳은 순서대로 <span class=\"text-amber-400 font-bold orb\">VPQTLS</span>입니다.",
+        "• 바른 경로를 따라 통과하며 수집한 알파벳은 순서대로 <span class=\"text-amber-400 font-bold tracking-wider\">VPQTLS</span>입니다.",
         "• 영문 키보드 자판을 한글로 치환(<span class=\"text-cyan-400 font-bold\">V➔ㅍ, P➔ㅔ, Q➔ㅂ, T➔ㅅ, L➔ㅣ, S➔ㄴ</span>)해 보세요.",
         "• 위에서 분비되어 단백질을 1차 분해하는 대표 소화효소의 이름(<span class=\"text-green-400 font-bold\">한글 2글자</span>)이 완성됩니다."
       ]
@@ -49,9 +49,9 @@ window.GAME_HINTS = {
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• <span class=\"text-amber-400 font-bold\">코드 A (온몸 순환):</span> 홀수 번째인 1, 3, 5단계 번호의 합산입니다 (15 + 20 + 6 = <span class=\"text-white font-bold orb\">41</span>).",
-        "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold orb\">29</span>).",
-        "• 최종 코드는 앞 2자리(A)와 뒤 2자리(B)를 연결한 <span class=\"text-green-400 font-bold orb text-base\">4자리 숫자</span>입니다."
+        "• <span class=\"text-amber-400 font-bold\">코드 A (온몸 순환):</span> 홀수 번째인 1, 3, 5단계 번호의 합산입니다 (15 + 20 + 6 = <span class=\"text-white font-bold\">41</span>).",
+        "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold\">29</span>).",
+        "• 최종 코드는 앞 2자리(A)와 뒤 2자리(B)를 연결한 <span class=\"text-green-400 font-bold text-base\">4자리 숫자</span>입니다."
       ]
     }
   },
@@ -71,9 +71,9 @@ window.GAME_HINTS = {
     step2: {
       title: "🔑 암호 힌트",
       lines: [
-        "• <span class=\"text-amber-400 font-bold\">1~2번 자리:</span> '확'의 한글 획수(8) + '산'의 한글 획수(5) ➔ <span class=\"text-white font-bold orb\">85</span>",
-        "• <span class=\"text-cyan-400 font-bold\">3~4번 자리:</span> 산소 기체 분자식(O₂)의 아래 첨자(2) + 이산화탄소(CO₂) 속 산소 원자 수(2) ➔ <span class=\"text-white font-bold orb\">22</span>",
-        "• 4자리 숫자를 차례대로 결합한 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>를 입력하세요."
+        "• <span class=\"text-amber-400 font-bold\">1~2번 자리:</span> '확'의 한글 획수(8) + '산'의 한글 획수(5) ➔ <span class=\"text-white font-bold\">85</span>",
+        "• <span class=\"text-cyan-400 font-bold\">3~4번 자리:</span> 산소 기체 분자식(O₂)의 아래 첨자(2) + 이산화탄소(CO₂) 속 산소 원자 수(2) ➔ <span class=\"text-white font-bold\">22</span>",
+        "• 4자리 숫자를 차례대로 결합한 <span class=\"text-green-400 font-bold text-base\">4자리 암호</span>를 입력하세요."
       ]
     }
   },
@@ -94,7 +94,7 @@ window.GAME_HINTS = {
       title: "🔑 암호 힌트",
       lines: [
         "• 소거 후 남는 물질 중 번호가 홀수인 것은 <span class=\"text-amber-400 font-bold\">① 요소</span>와 <span class=\"text-cyan-400 font-bold\">⑤ 물</span>입니다.",
-        "• ① 요소의 고유 코드(37)와 ⑤ 물의 고유 코드(09)를 순서대로 이어 붙인 <span class=\"text-green-400 font-bold orb text-base\">4자리 암호</span>가 정답입니다."
+        "• ① 요소의 고유 코드(37)와 ⑤ 물의 고유 코드(09)를 순서대로 이어 붙인 <span class=\"text-green-400 font-bold text-base\">4자리 암호</span>가 정답입니다."
       ]
     }
   },
@@ -115,7 +115,7 @@ window.GAME_HINTS = {
       title: "🔑 암호 힌트",
       lines: [
         "• 순서: <span class=\"text-cyan-400 font-bold\">①소화기 ➔ ②순환기 ➔ ③호흡기 ➔ ④신장내과</span>",
-        "• 각 포스터에서 찾은 1자리 숫자들을 순서대로 결합하여 <span class=\"text-red-400 font-bold orb text-base\">최종 4자리 보안 번호</span>를 완성하세요."
+        "• 각 포스터에서 찾은 1자리 숫자들을 순서대로 결합하여 <span class=\"text-red-400 font-bold text-base\">최종 4자리 보안 번호</span>를 완성하세요."
       ]
     }
   }
