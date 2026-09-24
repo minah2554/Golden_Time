@@ -11,6 +11,10 @@
  * 6. 연필 아이콘(수정)을 누르고, 버전에서 [새 버전]을 선택한 후 [배포]를 누릅니다.
  *    (중요: 반드시 [새 버전]을 선택해야 수정한 코드가 즉시 반영됩니다!)
  * 7. [배포] 완료!
+ *
+ * [기존 데이터 반 번호 일괄 정리 팁]
+ * Apps Script 상단 함수 선택 드롭다운에서 'normalizeAllSheetClasses'를 선택 후
+ * [실행] 버튼을 누르면 기존 시트의 '21반', '24반' 등이 '1', '4'로 자동 정리됩니다.
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";
@@ -19,12 +23,25 @@ const SHEET_NAME_HISTORY = "완치_기록_히스토리";
 function extractClassNum(raw) {
   if (!raw) return "";
   const str = String(raw).trim();
+  // 1. '2학년 1반', '21반', '1반' 처리
   const m = str.match(/([0-9]+)\s*반/);
   if (m) {
     let n = m[1];
-    if (n.length === 2 && n.startsWith("2")) n = n.substring(1); // 21반 -> 1반, 24반 -> 4반
+    if (n.length === 2 && n.startsWith("2")) n = n.substring(1);
     return n;
   }
+  // 2. '반 21', '반 1' 처리
+  const m2 = str.match(/반\s*([0-9]+)/);
+  if (m2) {
+    let n = m2[1];
+    if (n.length === 2 && n.startsWith("2")) n = n.substring(1);
+    return n;
+  }
+  // 3. '2학년 1' 처리
+  const m3 = str.match(/2학년\s*([0-9]+)/);
+  if (m3) return m3[1];
+
+  // 4. 순수 숫자
   const digits = str.replace(/[^0-9]/g, "");
   if (digits.length === 2 && digits.startsWith("2")) return digits.substring(1);
   return digits;
@@ -122,6 +139,7 @@ function doPost(e) {
     const headers = [
       "학급", "모둠", "수석 명의(팀장)", "전문의팀(팀원)",
       "차트01(소화)", "차트02(순환)", "차트03(호흡)", "차트04(신장)",
+      "최종 미션코드",
       "힌트 사용(회)", "현재 진행/남은시간", "완치 소요시간",
       "최종 등급", "진행 상태", "최근 업데이트"
     ];
@@ -137,22 +155,24 @@ function doPost(e) {
     let s2 = stamps[1] ? "✓ 완료" : "진행중";
     let s3 = stamps[2] ? "✓ 완료" : "진행중";
     let s4 = stamps[3] ? "✓ 완료" : "진행중";
+
+    let isFinalCompleted = !!data.finalCompleted;
     let hintCount = Number(data.hintCount || 0);
     const timeDisplay = data.timeDisplay || "";
 
     // 텍스트 강제 처리 (' 접두어로 구글 시트가 1899 날짜로 자동 변환하지 못하도록 방지)
-    let clearTimeStr = data.clearTimeStr || (data.finalCompleted ? timeDisplay : "");
+    let clearTimeStr = data.clearTimeStr || (isFinalCompleted ? timeDisplay : "");
     if (clearTimeStr && clearTimeStr !== "-") {
       clearTimeStr = "'" + String(clearTimeStr).replace(/^'/, "");
     } else {
       clearTimeStr = "-";
     }
 
-    let isFinalCompleted = !!data.finalCompleted;
-
     // 기존 해당 학급+모둠 또는 학급+팀장 행 탐색
     const values = sheet.getDataRange().getValues();
     let targetRow = -1;
+    const headerRow = values[0];
+    const hasFinalHeader = String(headerRow[8] || "").includes("코드");
 
     for (let i = 1; i < values.length; i++) {
       const rowClsNum = extractClassNum(values[i][0]);
@@ -169,8 +189,10 @@ function doPost(e) {
     // 🛡️ [데이터 보호 로직: 타 기기 재접속 시 진행 상황 손실 방지]
     if (targetRow > 0) {
       const existing = values[targetRow - 1];
-      const existingFinal = String(existing[12] || "").includes("완치완료");
-      const existingClearVal = existing[10];
+      const statusIdx = hasFinalHeader ? 13 : 12;
+      const clearTimeIdx = hasFinalHeader ? 11 : 10;
+      const existingFinal = String(existing[statusIdx] || "").includes("완치완료");
+      const existingClearVal = existing[clearTimeIdx];
 
       if (data.action !== "resetGroup") {
         // 1. 이미 완치 완료된 경우 미완료로 다운그레이드 방지
@@ -191,15 +213,21 @@ function doPost(e) {
         if (e3) s3 = "✓ 완료";
         if (e4) s4 = "✓ 완료";
 
-        hintCount = Math.max(hintCount, Number(existing[8]) || 0);
+        const hintIdx = hasFinalHeader ? 9 : 8;
+        hintCount = Math.max(hintCount, Number(existing[hintIdx]) || 0);
       }
     }
 
+    // 최종 코드 상태 산출 (4개 스탬프 완료 + 최종 코드 성공 시 완치 완료)
+    const allStamps = (s1 === "✓ 완료" && s2 === "✓ 완료" && s3 === "✓ 완료" && s4 === "✓ 완료");
+    const finalCodeCol = isFinalCompleted ? "✓ 성공" : (allStamps ? "🔓 해제됨(진행중)" : "🔒 잠김");
+
     const grade = data.grade || (isFinalCompleted ? "완료" : "-");
-    const status = isFinalCompleted ? "🏆 완치완료" : "🟢 작전진행중";
+    const status = isFinalCompleted ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중");
     const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
 
-    const formattedCls = clsNum ? ("2학년 " + clsNum + "반") : (rawCls || "2학년");
+    // 학급 번호: 사용자가 요청한 '1' (순수 반 번호)로 명확히 기록
+    const formattedCls = clsNum || "1";
     const formattedGrp = grp ? (grp + "모둠") : "-";
 
     const rowData = [
@@ -208,6 +236,7 @@ function doPost(e) {
       leader,
       members,
       s1, s2, s3, s4,
+      finalCodeCol,
       hintCount,
       timeDisplay,
       clearTimeStr,
@@ -269,6 +298,10 @@ function doGet(e) {
     const filterClsRaw = e && e.parameter && e.parameter.cls ? e.parameter.cls : "";
     const filterClsNum = extractClassNum(filterClsRaw);
 
+    const headerRow = values[0] || [];
+    const hasFinalHeader = String(headerRow[8] || "").includes("코드");
+    const offset = hasFinalHeader ? 1 : 0;
+
     const groups = [];
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
@@ -277,8 +310,8 @@ function doGet(e) {
 
       const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
 
-      // 날짜 변환 방지: Date 객체인 경우 시간 문자열로 추출
-      let clearVal = row[10];
+      const clearTimeIdx = 10 + offset;
+      let clearVal = row[clearTimeIdx];
       if (clearVal instanceof Date) {
         const mm = clearVal.getMinutes();
         const ssSec = clearVal.getSeconds();
@@ -287,6 +320,10 @@ function doGet(e) {
         clearVal = String(clearVal || "").replace(/^'/, "");
       }
 
+      const finalCodeVal = hasFinalHeader ? String(row[8] || "") : "";
+      const statusVal = String(row[12 + offset] || "");
+      const isCompleted = finalCodeVal.includes("성공") || statusVal.includes("완치완료");
+
       groups.push({
         cls: row[0],
         clsNum: rClsNum,
@@ -294,12 +331,13 @@ function doGet(e) {
         leader: row[2],
         members: row[3],
         stamps: [row[4] === "✓ 완료", row[5] === "✓ 완료", row[6] === "✓ 완료", row[7] === "✓ 완료"],
-        hintCount: Number(row[8]) || 0,
-        timeDisplay: String(row[9] || ""),
-        clearTimeStr: clearVal !== "-" ? clearVal : null,
-        grade: row[11],
-        finalCompleted: String(row[12] || "").includes("완치완료"),
-        updatedAt: row[13] instanceof Date ? Utilities.formatDate(row[13], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[13]
+        finalCode: finalCodeVal,
+        hintCount: Number(row[8 + offset]) || 0,
+        timeDisplay: String(row[9 + offset] || ""),
+        clearTimeStr: (clearVal !== "-" && isCompleted) ? clearVal : null,
+        grade: row[11 + offset],
+        finalCompleted: isCompleted,
+        updatedAt: row[13 + offset] instanceof Date ? Utilities.formatDate(row[13 + offset], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[13 + offset]
       });
     }
 
@@ -311,5 +349,25 @@ function doGet(e) {
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/**
+ * 🛠️ [선택 실행] 구글 시트 기존 학급 열 정규화 함수
+ * 구글 시트 Apps Script 에디터에서 이 함수를 선택하고 [실행]을 누르면,
+ * 기존에 '21반', '24반' 등으로 기록된 데이터를 모두 '1', '4' 등 순수 반 번호로 자동 일괄 정리합니다.
+ */
+function normalizeAllSheetClasses() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
+  if (!sheet) return;
+  const range = sheet.getDataRange();
+  const values = range.getValues();
+  for (let i = 1; i < values.length; i++) {
+    const rawCls = values[i][0];
+    const n = extractClassNum(rawCls);
+    if (n) {
+      sheet.getRange(i + 1, 1).setValue(n);
+    }
   }
 }
