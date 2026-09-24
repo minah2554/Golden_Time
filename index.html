@@ -541,79 +541,70 @@
       color: #e2e8f0;
     }
 
-    /* 푸터 스타일 */
+    /* 푸터 스타일 (초슬림 모바일 최적화 2줄 레이아웃) */
     .footer {
       margin-top: auto;
       width: 100%;
-      background: rgba(11, 15, 25, 0.95);
-      border-top: 1px solid rgba(6, 182, 212, 0.2);
-      padding: 0.85rem 1rem;
+      background: rgba(7, 11, 20, 0.95);
+      border-top: 1px solid rgba(6, 182, 212, 0.25);
+      padding: 0.45rem 0.75rem;
       font-family: 'Pretendard', sans-serif;
-      color: #94a3b8;
-      font-size: 0.75rem;
       z-index: 20;
     }
 
     .footer-in {
-      max-width: 72rem;
+      max-width: 56rem;
       margin: 0 auto;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 0.4rem;
+      justify-content: center;
+      gap: 0.15rem;
       text-align: center;
     }
 
-    @media (min-width: 640px) {
-      .footer-in {
-        flex-direction: row;
-        justify-content: space-between;
-        text-align: left;
-      }
-    }
-
-    .f-brand {
+    .f-brand-line {
       display: flex;
-      align-items: center;
-      gap: 0.5rem;
       flex-wrap: wrap;
+      align-items: center;
       justify-content: center;
-    }
-
-    @media (min-width: 640px) {
-      .f-brand {
-        justify-content: flex-start;
-      }
+      gap: 0.35rem;
+      font-size: 0.75rem;
     }
 
     .f-wm {
       font-weight: 800;
       color: #38bdf8;
-      letter-spacing: 0.05em;
-      font-size: 0.8rem;
+      letter-spacing: 0.04em;
     }
 
     .f-tag {
-      color: #64748b;
-      font-size: 0.7rem;
+      color: #cbd5e1;
+      font-weight: 500;
+      font-size: 0.72rem;
     }
 
-    .f-legal {
-      color: #64748b;
+    .f-ver {
+      display: inline-block;
+      padding: 0.05rem 0.35rem;
+      border-radius: 4px;
+      background: rgba(8, 47, 73, 0.7);
+      border: 1px solid rgba(6, 182, 212, 0.4);
+      color: #38bdf8;
       font-size: 0.65rem;
-      line-height: 1.5;
-      text-align: center;
+      font-weight: 800;
+      letter-spacing: 0.02em;
     }
 
-    @media (min-width: 640px) {
-      .f-legal {
-        text-align: right;
-      }
-    }
-
-    .f-legal .sep {
-      margin: 0 0.3rem;
-      color: #475569;
+    .f-legal-line {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 0.3rem;
+      color: #64748b;
+      font-size: 0.63rem;
+      line-height: 1.25;
     }
 
     /* ===== 미션 그리드 반응형 ===== */
@@ -895,36 +886,37 @@
       </div>
     </div>
 
-    <!-- 푸터 (규칙, 버전 기록, 아이콘, 영문 명칭) -->
+    <!-- 푸터 (아이콘, MINARI STUDIO, 영문명, 버전기록, 저작권보호 초슬림 2줄) -->
     <footer class="footer no-print">
       <div class="footer-in">
-        <div class="f-brand">
-          <div>
-            <span class="inline-flex items-center gap-1.5"><svg class="shrink-0 inline-block align-middle"
-                viewBox="0 0 100 100"
-                style="width:1.15rem;height:1.15rem;filter:drop-shadow(0 0 8px rgba(6,182,212,0.6));">
-                <defs>
-                  <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#081226" />
-                    <stop offset="100%" stop-color="#0e7490" />
-                  </linearGradient>
-                  <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#22d3ee" />
-                    <stop offset="100%" stop-color="#06b6d4" />
-                  </linearGradient>
-                </defs>
-                <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
-                <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
-                <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5"
-                  stroke-linecap="round" stroke-linejoin="round" />
-                <circle cx="51" cy="50" r="4" fill="#ef4444" />
-              </svg><span class="f-wm">MINARI STUDIO</span></span>
-            <span class="f-tag">Classroom Tools for Teachers · Golden Time Medical Center Escape Room</span>
-          </div>
+        <div class="f-brand-line">
+          <span class="inline-flex items-center gap-1.5 font-bold">
+            <svg class="shrink-0 inline-block align-middle" viewBox="0 0 100 100" style="width:0.95rem;height:0.95rem;filter:drop-shadow(0 0 6px rgba(6,182,212,0.6));">
+              <defs>
+                <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#081226" />
+                  <stop offset="100%" stop-color="#0e7490" />
+                </linearGradient>
+                <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#22d3ee" />
+                  <stop offset="100%" stop-color="#06b6d4" />
+                </linearGradient>
+              </defs>
+              <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
+              <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
+              <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="51" cy="50" r="4" fill="#ef4444" />
+            </svg>
+            <span class="f-wm">MINARI STUDIO</span>
+          </span>
+          <span class="text-slate-600">·</span>
+          <span class="f-tag">Golden Time Medical Center Escape Room</span>
+          <span class="f-ver">v1.3</span>
         </div>
-        <div class="f-legal">
-          © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.3<br>
-          본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+        <div class="f-legal-line">
+          <span>© 2026 MINARI STUDIO. All rights reserved.</span>
+          <span class="text-slate-700">|</span>
+          <span>디자인·아이콘·소스코드 무단 복제 및 재배포 금지</span>
         </div>
       </div>
     </footer>
@@ -1014,36 +1006,37 @@
       </div>
     </div>
 
-    <!-- 푸터 (규칙, 버전 기록, 아이콘, 영문 명칭) -->
+    <!-- 푸터 (아이콘, MINARI STUDIO, 영문명, 버전기록, 저작권보호 초슬림 2줄) -->
     <footer class="footer no-print mt-auto">
       <div class="footer-in">
-        <div class="f-brand">
-          <div>
-            <span class="inline-flex items-center gap-1.5"><svg class="shrink-0 inline-block align-middle"
-                viewBox="0 0 100 100"
-                style="width:1.15rem;height:1.15rem;filter:drop-shadow(0 0 8px rgba(6,182,212,0.6));">
-                <defs>
-                  <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#081226" />
-                    <stop offset="100%" stop-color="#0e7490" />
-                  </linearGradient>
-                  <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
-                    <stop offset="0%" stop-color="#22d3ee" />
-                    <stop offset="100%" stop-color="#06b6d4" />
-                  </linearGradient>
-                </defs>
-                <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
-                <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
-                <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5"
-                  stroke-linecap="round" stroke-linejoin="round" />
-                <circle cx="51" cy="50" r="4" fill="#ef4444" />
-              </svg><span class="f-wm">MINARI STUDIO</span></span>
-            <span class="f-tag">Classroom Tools for Teachers · Golden Time Medical Center Escape Room</span>
-          </div>
+        <div class="f-brand-line">
+          <span class="inline-flex items-center gap-1.5 font-bold">
+            <svg class="shrink-0 inline-block align-middle" viewBox="0 0 100 100" style="width:0.95rem;height:0.95rem;filter:drop-shadow(0 0 6px rgba(6,182,212,0.6));">
+              <defs>
+                <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#081226" />
+                  <stop offset="100%" stop-color="#0e7490" />
+                </linearGradient>
+                <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#22d3ee" />
+                  <stop offset="100%" stop-color="#06b6d4" />
+                </linearGradient>
+              </defs>
+              <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
+              <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
+              <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+              <circle cx="51" cy="50" r="4" fill="#ef4444" />
+            </svg>
+            <span class="f-wm">MINARI STUDIO</span>
+          </span>
+          <span class="text-slate-600">·</span>
+          <span class="f-tag">Golden Time Medical Center Escape Room</span>
+          <span class="f-ver">v1.3</span>
         </div>
-        <div class="f-legal">
-          © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.3<br>
-          본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+        <div class="f-legal-line">
+          <span>© 2026 MINARI STUDIO. All rights reserved.</span>
+          <span class="text-slate-700">|</span>
+          <span>디자인·아이콘·소스코드 무단 복제 및 재배포 금지</span>
         </div>
       </div>
     </footer>
@@ -1228,36 +1221,37 @@
         </div>
       </main>
 
-      <!-- 푸터 (규칙, 버전 기록, 아이콘, 영문 명칭) -->
+      <!-- 푸터 (아이콘, MINARI STUDIO, 영문명, 버전기록, 저작권보호 초슬림 2줄) -->
       <footer class="footer no-print mt-auto">
         <div class="footer-in">
-          <div class="f-brand">
-            <div>
-              <span class="inline-flex items-center gap-1.5"><svg class="shrink-0 inline-block align-middle"
-                  viewBox="0 0 100 100"
-                  style="width:1.15rem;height:1.15rem;filter:drop-shadow(0 0 8px rgba(6,182,212,0.6));">
-                  <defs>
-                    <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#081226" />
-                      <stop offset="100%" stop-color="#0e7490" />
-                    </linearGradient>
-                    <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stop-color="#22d3ee" />
-                      <stop offset="100%" stop-color="#06b6d4" />
-                    </linearGradient>
-                  </defs>
-                  <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
-                  <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
-                  <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5"
-                    stroke-linecap="round" stroke-linejoin="round" />
-                  <circle cx="51" cy="50" r="4" fill="#ef4444" />
-                </svg><span class="f-wm">MINARI STUDIO</span></span>
-              <span class="f-tag">Classroom Tools for Teachers · Golden Time Medical Center Escape Room</span>
-            </div>
+          <div class="f-brand-line">
+            <span class="inline-flex items-center gap-1.5 font-bold">
+              <svg class="shrink-0 inline-block align-middle" viewBox="0 0 100 100" style="width:0.95rem;height:0.95rem;filter:drop-shadow(0 0 6px rgba(6,182,212,0.6));">
+                <defs>
+                  <linearGradient id="medBg" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#081226" />
+                    <stop offset="100%" stop-color="#0e7490" />
+                  </linearGradient>
+                  <linearGradient id="medCross" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#22d3ee" />
+                    <stop offset="100%" stop-color="#06b6d4" />
+                  </linearGradient>
+                </defs>
+                <rect width="100" height="100" rx="24" fill="url(#medBg)" stroke="#22d3ee" stroke-width="4" />
+                <path d="M38 16 H62 V38 H84 V62 H62 V84 H38 V62 H16 V38 H38 Z" fill="url(#medCross)" />
+                <path d="M18 50 H36 L43 32 L51 68 L59 42 L65 50 H82" fill="none" stroke="#fef08a" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" />
+                <circle cx="51" cy="50" r="4" fill="#ef4444" />
+              </svg>
+              <span class="f-wm">MINARI STUDIO</span>
+            </span>
+            <span class="text-slate-600">·</span>
+            <span class="f-tag">Golden Time Medical Center Escape Room</span>
+            <span class="f-ver">v1.3</span>
           </div>
-          <div class="f-legal">
-            © 2026 MINARI STUDIO. All rights reserved.<span class="sep">|</span>Golden Time Medical Center Web App v1.3<br>
-            본 웹앱의 디자인·아이콘·소스 코드에 대한 권리는 MINARI STUDIO에 있으며, 무단 복제 및 재배포를 금합니다.
+          <div class="f-legal-line">
+            <span>© 2026 MINARI STUDIO. All rights reserved.</span>
+            <span class="text-slate-700">|</span>
+            <span>디자인·아이콘·소스코드 무단 복제 및 재배포 금지</span>
           </div>
         </div>
       </footer>

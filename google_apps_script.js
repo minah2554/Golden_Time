@@ -72,14 +72,14 @@ function saveNoticeData(ss, msg, cls, timestamp) {
     props.setProperty("NOTICE_MSG", m);
     props.setProperty("NOTICE_CLS", c);
     props.setProperty("NOTICE_TIME", String(ts));
-  } catch (e) {}
+  } catch (e) { }
 
   try {
     const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
     if (sheet) {
       sheet.getRange("Z1").setValue(JSON.stringify({ msg: m, cls: c, ts: ts }));
     }
-  } catch (e) {}
+  } catch (e) { }
 }
 
 function getNoticeData(ss) {
@@ -92,7 +92,7 @@ function getNoticeData(ss) {
     noticeMsg = props.getProperty("NOTICE_MSG") || "";
     noticeCls = props.getProperty("NOTICE_CLS") || "all";
     noticeTime = Number(props.getProperty("NOTICE_TIME") || 0);
-  } catch (e) {}
+  } catch (e) { }
 
   if (!noticeMsg) {
     try {
@@ -106,7 +106,7 @@ function getNoticeData(ss) {
           noticeTime = Number(parsed.ts || 0);
         }
       }
-    } catch (e) {}
+    } catch (e) { }
   }
 
   return { msg: noticeMsg, cls: noticeCls, ts: noticeTime };
