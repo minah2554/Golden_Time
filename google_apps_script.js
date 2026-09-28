@@ -239,66 +239,45 @@ function doPost(e) {
       startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
     }
 
-    // 기존 해당 학급+모둠 또는 학급+팀장 행 탐색 (중복 행 감지 및 단일화)
+    // 🛡️ [기록 누적 및 세션 유지]: 
+    // 동일한 학급+팀장 이름인 경우에만 기존 진행 세션으로 매칭하여 실시간 상태 업데이트
+    // 팀장 이름이 다르거나 새로운 팀인 경우 기존 시트의 기록을 절대 덮어쓰거나 삭제하지 않고 신규 행으로 계속 누적 추가!
     const values = sheet.getDataRange().getValues();
-    const matchRows = [];
+    let targetRow = -1;
 
-    for (let i = 1; i < values.length; i++) {
-      const rowClsNum = extractClassNum(values[i][0]);
-      const rowGrpNum = String(values[i][1]).replace(/[^0-9]/g, "");
-      const rowLeader = String(values[i][2] || "").trim().toLowerCase();
-      const isLeaderMatch = leader && rowLeader && (rowLeader === leader.toLowerCase());
-      const isClassMatch = !rowClsNum || !clsNum || (rowClsNum === clsNum);
-      const isGroupMatch = grp && rowGrpNum && (rowGrpNum === grp);
+    if (leader) {
+      for (let i = values.length - 1; i >= 1; i--) {
+        const rowClsNum = extractClassNum(values[i][0]);
+        const rowLeader = String(values[i][2] || "").trim().toLowerCase();
+        const isLeaderMatch = (rowLeader === leader.toLowerCase());
+        const isClassMatch = !rowClsNum || !clsNum || (rowClsNum === clsNum);
 
-      if ((isLeaderMatch && isClassMatch) || (isGroupMatch && isClassMatch) || isLeaderMatch) {
-        matchRows.push(i + 1); // 1-indexed row number
+        if (isLeaderMatch && isClassMatch) {
+          targetRow = i + 1;
+          break;
+        }
       }
     }
 
-    let targetRow = matchRows.length > 0 ? matchRows[0] : -1;
-    // 동일 모둠의 중복 행이 존재할 경우 하위 중복 행들을 삭제하여 항상 1개의 행만 유지
-    if (matchRows.length > 1) {
-      for (let m = matchRows.length - 1; m >= 1; m--) {
-        sheet.deleteRow(matchRows[m]);
-      }
-    }
-
-    // 🛡️ [데이터 보호 및 리셋 로직]
+    // 🛡️ [데이터 보호 및 리셋 로직]: 교사용 대시보드 리셋 시 학생 기기 및 타이머 세션만 초기화하고 시트 행은 영구 보존!
     if (data.action === "resetGroup") {
       const rCls = clsNum;
       const rGrp = String(grp).replace(/[^0-9]/g, "");
       const startKey = "START_" + rCls + "_" + rGrp;
       props.deleteProperty(startKey);
 
-      // 리셋 식별 타임스탬프 기록 (학생 기기에서 즉시 감지하여 캐시 클리어)
+      // 리셋 식별 타임스탬프 기록 (학생 기기에서 즉시 감지하여 캐시 클리어 & 새 팀 로그인 유도)
       const nowTs = Date.now();
       props.setProperty("RESET_" + rCls + "_" + rGrp, String(nowTs));
 
-      // 시트에서 해당 학급 및 모둠의 모든 행 탐색 및 삭제
-      const allVals = sheet.getDataRange().getValues();
-      let delCount = 0;
-      for (let i = allVals.length - 1; i >= 1; i--) {
-        const rowClsNum = extractClassNum(allVals[i][0]);
-        const rowGrpNum = String(allVals[i][1]).replace(/[^0-9]/g, "");
-        const rowLeader = String(allVals[i][2] || "").trim();
-
-        if (rowClsNum === rCls && (rowGrpNum === rGrp || (leader && rowLeader === leader))) {
-          if (rowLeader) {
-            props.deleteProperty("START_LEADER_" + rowLeader.toLowerCase().trim());
-          }
-          sheet.deleteRow(i + 1);
-          delCount++;
-        }
-      }
       if (leader) props.deleteProperty("START_LEADER_" + leader.toLowerCase().trim());
 
+      // ★ [선생님 요청 핵심]: 구글 시트의 기존 기록(완치/진행)은 절대 삭제하지 않고 영구 누적 보존!
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         action: "resetGroup",
         cls: rCls,
         grp: rGrp,
-        deleted: delCount,
         resetTs: nowTs
       })).setMimeType(ContentService.MimeType.JSON);
     }
@@ -314,25 +293,11 @@ function doPost(e) {
       }
       props.setProperty("RESET_CLASS_" + rCls, String(nowTs));
 
-      const allVals = sheet.getDataRange().getValues();
-      let delCount = 0;
-      for (let i = allVals.length - 1; i >= 1; i--) {
-        const rowClsNum = extractClassNum(allVals[i][0]);
-        if (rowClsNum === rCls) {
-          const rowLeader = String(allVals[i][2] || "").trim();
-          if (rowLeader) {
-            props.deleteProperty("START_LEADER_" + rowLeader.toLowerCase().trim());
-          }
-          sheet.deleteRow(i + 1);
-          delCount++;
-        }
-      }
-
+      // ★ [선생님 요청 핵심]: 구글 시트의 기존 기록(완치/진행)은 절대 삭제하지 않고 영구 누적 보존!
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         action: "resetAll",
         cls: rCls,
-        deleted: delCount,
         resetTs: nowTs
       })).setMimeType(ContentService.MimeType.JSON);
     }

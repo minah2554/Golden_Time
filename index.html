@@ -2249,19 +2249,6 @@
               forceResetStudentState('⚠️ 교사 대시보드에서 ' + studentGrp + '모둠 기록이 초기화되었습니다.\n처음부터 다시 시작합니다.');
               return;
             }
-
-            // 학생 기기가 이미 진행 중이거나 타임아웃 상태인데, 시트에서 해당 모둠 데이터가 삭제/리셋된 경우
-            if ((G.running || G.sec <= 0 || G.finalCompleted) && Array.isArray(data.groups)) {
-              const myRow = data.groups.find(g => {
-                const rCls = g.clsNum || normCls(g.cls);
-                const rGrp = String(g.grp).replace(/[^0-9]/g, '');
-                return rCls === studentCls && rGrp === studentGrp;
-              });
-              if (!myRow) {
-                forceResetStudentState('⚠️ 교사 대시보드에서 ' + studentGrp + '모둠 기록이 초기화되었습니다.\n처음부터 다시 시작합니다.');
-                return;
-              }
-            }
           }
         })
         .catch(() => { });
