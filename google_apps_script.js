@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API
+ * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v2.0)
  * ============================================================
  * [적용 방법]
  * 1. 구글 스프레드시트(https://docs.google.com/spreadsheets/d/1KNcFWVB6eGS8bGr2avxChuuV3j0YE4kdMG0KrlahZ9E/edit)를 엽니다.
@@ -12,13 +12,24 @@
  *    (중요: 반드시 [새 버전]을 선택해야 수정한 코드가 즉시 반영됩니다!)
  * 7. [배포] 완료!
  *
- * [기존 데이터 반 번호 일괄 정리 팁]
- * Apps Script 상단 함수 선택 드롭다운에서 'normalizeAllSheetClasses'를 선택 후
- * [실행] 버튼을 누르면 기존 시트의 '21반', '24반' 등이 '1', '4'로 자동 정리됩니다.
+ * [⚡ 구글 시트 어긋난 열 자동 복구 기능 탑재]
+ * - 이 스크립트는 웹앱에서 조회(GET) 또는 전송(POST) 시 자동으로 시트 1행의 누락된 헤더와
+ *   이전 2~15행의 어긋난 열 위치(최종 통합 치료 열 삽입 및 힌트/시간/등급/상태 재정렬)를 
+ *   기존 데이터를 지우지 않고 100% 안전하게 자동 복원/정렬합니다.
+ * - 필요 시 Apps Script 편집기 상단에서 'migrateAndFixSheetLayout' 함수를 선택 후 [실행]을 눌러
+ *   시트를 즉시 수동으로 완벽 정리할 수도 있습니다.
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";
 const SHEET_NAME_HISTORY = "완치_기록_히스토리";
+
+const HEADERS_15 = [
+  "학급", "모둠", "수석 명의(팀장)", "전문의팀(팀원)",
+  "차트01(소화)", "차트02(순환)", "차트03(호흡)", "차트04(신장)",
+  "최종 통합 치료",
+  "힌트 사용(회)", "현재 진행/남은시간", "완치 소요시간",
+  "최종 등급", "진행 상태", "최근 업데이트"
+];
 
 function extractClassNum(raw) {
   if (!raw) return "";
@@ -47,19 +58,128 @@ function extractClassNum(raw) {
   return digits;
 }
 
+function formatHeader(sheet, numCols) {
+  const headerRange = sheet.getRange(1, 1, 1, numCols);
+  headerRange.setBackground("#0f172a");
+  headerRange.setFontColor("#38bdf8");
+  headerRange.setFontWeight("bold");
+  headerRange.setHorizontalAlignment("center");
+  sheet.setFrozenRows(1);
+}
+
 function getOrCreateSheet(ss, name, headers) {
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
-    const headerRange = sheet.getRange(1, 1, 1, headers.length);
-    headerRange.setBackground("#0f172a");
-    headerRange.setFontColor("#38bdf8");
-    headerRange.setFontWeight("bold");
-    headerRange.setHorizontalAlignment("center");
-    sheet.setFrozenRows(1);
+    formatHeader(sheet, headers.length);
   }
   return sheet;
+}
+
+/**
+ * 🛠️ [시트 레이아웃 자동 정렬 및 열 어긋남 복구]
+ * 16행 이후 도입된 '최종 통합 치료' 열로 인해 기존 2~15행 데이터와 헤더가 밀려있던 현상을
+ * 과거 기록 유실 없이 100% 깔끔하게 재배열하여 일치시킵니다.
+ */
+function autoFixAndAlignSheet(sheet) {
+  if (!sheet) return;
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  if (lastRow < 1) return;
+
+  const curHeaderRange = sheet.getRange(1, 1, 1, Math.max(lastCol, HEADERS_15.length));
+  const curHeaders = curHeaderRange.getValues()[0];
+  const col9Header = String(curHeaders[8] || "");
+
+  const needsHeaderFix = !col9Header.includes("최종") && !col9Header.includes("코드");
+
+  if (lastRow === 1) {
+    if (needsHeaderFix) {
+      sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
+      formatHeader(sheet, HEADERS_15.length);
+    }
+    return;
+  }
+
+  const dataRange = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, 15));
+  const values = dataRange.getValues();
+  let needUpdate = needsHeaderFix;
+
+  const fixedValues = values.map(row => {
+    const val8 = String(row[8] || "").trim();
+    // 15열 형식 (I열에 '성공', '해제', '잠김'이 위치하는 경우)
+    const isAlready15 = val8.includes("성공") || val8.includes("해제") || val8.includes("잠김");
+
+    if (isAlready15) {
+      const r = row.slice(0, 15);
+      while (r.length < 15) r.push("");
+      r[0] = extractClassNum(r[0]) || r[0]; // 학급 정규화
+      return r;
+    }
+
+    // 14열 구 형식인 경우 (I열에 힌트 숫자가 있고 전체가 한 칸씩 좌측에 배치됨)
+    needUpdate = true;
+    const cls = extractClassNum(row[0]) || row[0];
+    const grp = row[1];
+    const leader = row[2];
+    const members = row[3];
+    const s1 = row[4];
+    const s2 = row[5];
+    const s3 = row[6];
+    const s4 = row[7];
+
+    const oldStatus = String(row[12] || "");
+    const allStamps = (s1 === "✓ 완료" && s2 === "✓ 완료" && s3 === "✓ 완료" && s4 === "✓ 완료");
+    let finalCol = "🔒 잠김";
+    if (oldStatus.includes("완치완료")) {
+      finalCol = "✓ 성공";
+    } else if (allStamps) {
+      finalCol = "🔓 해제됨(진행중)";
+    }
+
+    const hintCount = (row[8] !== undefined && row[8] !== "") ? row[8] : 0;
+    const timeDisp = row[9] || "";
+    let clearVal = row[10];
+    if (clearVal && clearVal !== "-") {
+      clearVal = "'" + String(clearVal).replace(/^'/, "");
+    } else {
+      clearVal = "-";
+    }
+    const grade = row[11] || "-";
+    const status = oldStatus || (finalCol === "✓ 성공" ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중"));
+    const updated = row[13] || "";
+
+    return [
+      cls, grp, leader, members,
+      s1, s2, s3, s4,
+      finalCol,
+      hintCount,
+      timeDisp,
+      clearVal,
+      grade,
+      status,
+      updated
+    ];
+  });
+
+  if (needUpdate) {
+    sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
+    formatHeader(sheet, HEADERS_15.length);
+    sheet.getRange(2, 1, fixedValues.length, 15).setValues(fixedValues);
+  }
+}
+
+/**
+ * 🛠️ [선택 실행] 전체 시트 수동 마이그레이션 실행 함수
+ */
+function migrateAndFixSheetLayout() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const statusSheet = ss.getSheetByName(SHEET_NAME_STATUS);
+  if (statusSheet) autoFixAndAlignSheet(statusSheet);
+
+  const histSheet = ss.getSheetByName(SHEET_NAME_HISTORY);
+  if (histSheet) autoFixAndAlignSheet(histSheet);
 }
 
 function saveNoticeData(ss, msg, cls, timestamp) {
@@ -136,14 +256,8 @@ function doPost(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const headers = [
-      "학급", "모둠", "수석 명의(팀장)", "전문의팀(팀원)",
-      "차트01(소화)", "차트02(순환)", "차트03(호흡)", "차트04(신장)",
-      "최종 미션코드",
-      "힌트 사용(회)", "현재 진행/남은시간", "완치 소요시간",
-      "최종 등급", "진행 상태", "최근 업데이트"
-    ];
-    const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, headers);
+    const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+    autoFixAndAlignSheet(sheet);
 
     const rawCls = data.cls || "";
     const clsNum = extractClassNum(rawCls);
@@ -156,11 +270,11 @@ function doPost(e) {
     let s3 = stamps[2] ? "✓ 완료" : "진행중";
     let s4 = stamps[3] ? "✓ 완료" : "진행중";
 
+    // 🔒 완료 조건 엄격화: 4개 장기 스탬프만으로는 완치가 아니며, 오직 최종 통합 치료 암호 입력 성공 시에만 완료!
     let isFinalCompleted = !!data.finalCompleted;
     let hintCount = Number(data.hintCount || 0);
     const timeDisplay = data.timeDisplay || "";
 
-    // 텍스트 강제 처리 (' 접두어로 구글 시트가 1899 날짜로 자동 변환하지 못하도록 방지)
     let clearTimeStr = data.clearTimeStr || (isFinalCompleted ? timeDisplay : "");
     if (clearTimeStr && clearTimeStr !== "-") {
       clearTimeStr = "'" + String(clearTimeStr).replace(/^'/, "");
@@ -168,11 +282,22 @@ function doPost(e) {
       clearTimeStr = "-";
     }
 
+    // ⏱ 시작 시간(startedAt) 서버 프로퍼티 저장 및 유지
+    const props = PropertiesService.getScriptProperties();
+    const startKey = "START_" + clsNum + "_" + grp;
+    const leaderKey = "START_LEADER_" + leader.toLowerCase();
+    let startedAt = Number(data.startedAt || 0);
+
+    if (startedAt > 0) {
+      props.setProperty(startKey, String(startedAt));
+      if (leader) props.setProperty(leaderKey, String(startedAt));
+    } else {
+      startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
+    }
+
     // 기존 해당 학급+모둠 또는 학급+팀장 행 탐색
     const values = sheet.getDataRange().getValues();
     let targetRow = -1;
-    const headerRow = values[0];
-    const hasFinalHeader = String(headerRow[8] || "").includes("코드");
 
     for (let i = 1; i < values.length; i++) {
       const rowClsNum = extractClassNum(values[i][0]);
@@ -186,36 +311,37 @@ function doPost(e) {
       }
     }
 
-    // 🛡️ [데이터 보호 로직: 타 기기 재접속 시 진행 상황 손실 방지]
+    // 🛡️ [데이터 보호 및 리셋 로직]
+    if (data.action === "resetGroup") {
+      props.deleteProperty(startKey);
+      if (leader) props.deleteProperty(leaderKey);
+      if (targetRow > 0) {
+        sheet.deleteRow(targetRow);
+      }
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", action: "resetGroup" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
     if (targetRow > 0) {
       const existing = values[targetRow - 1];
-      const statusIdx = hasFinalHeader ? 13 : 12;
-      const clearTimeIdx = hasFinalHeader ? 11 : 10;
-      const existingFinal = String(existing[statusIdx] || "").includes("완치완료");
-      const existingClearVal = existing[clearTimeIdx];
+      const existingFinal = String(existing[13] || "").includes("완치완료") || String(existing[8] || "").includes("성공");
+      const existingClearVal = existing[11];
 
-      if (data.action !== "resetGroup") {
-        // 1. 이미 완치 완료된 경우 미완료로 다운그레이드 방지
-        if (existingFinal && !isFinalCompleted) {
-          isFinalCompleted = true;
-          if (existingClearVal && existingClearVal !== "-") {
-            clearTimeStr = "'" + String(existingClearVal).replace(/^'/, "");
-          }
+      // 1. 이미 완치 완료된 경우 미완료로 다운그레이드 방지
+      if (existingFinal && !isFinalCompleted) {
+        isFinalCompleted = true;
+        if (existingClearVal && existingClearVal !== "-") {
+          clearTimeStr = "'" + String(existingClearVal).replace(/^'/, "");
         }
-
-        // 2. 이미 완료된 스탬프는 유지 (새 기기에서 빈 스탬프로 덮어쓰기 방지)
-        const e1 = existing[4] === "✓ 완료";
-        const e2 = existing[5] === "✓ 완료";
-        const e3 = existing[6] === "✓ 완료";
-        const e4 = existing[7] === "✓ 완료";
-        if (e1) s1 = "✓ 완료";
-        if (e2) s2 = "✓ 완료";
-        if (e3) s3 = "✓ 완료";
-        if (e4) s4 = "✓ 완료";
-
-        const hintIdx = hasFinalHeader ? 9 : 8;
-        hintCount = Math.max(hintCount, Number(existing[hintIdx]) || 0);
       }
+
+      // 2. 이미 완료된 스탬프는 유지 (새 기기에서 빈 스탬프로 덮어쓰기 방지)
+      if (existing[4] === "✓ 완료") s1 = "✓ 완료";
+      if (existing[5] === "✓ 완료") s2 = "✓ 완료";
+      if (existing[6] === "✓ 완료") s3 = "✓ 완료";
+      if (existing[7] === "✓ 완료") s4 = "✓ 완료";
+
+      hintCount = Math.max(hintCount, Number(existing[9]) || 0);
     }
 
     // 최종 코드 상태 산출 (4개 스탬프 완료 + 최종 코드 성공 시 완치 완료)
@@ -226,7 +352,6 @@ function doPost(e) {
     const status = isFinalCompleted ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중");
     const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
 
-    // 학급 번호: 사용자가 요청한 '1' (순수 반 번호)로 명확히 기록
     const formattedCls = clsNum || "1";
     const formattedGrp = grp ? (grp + "모둠") : "-";
 
@@ -252,10 +377,10 @@ function doPost(e) {
       targetRow = sheet.getLastRow();
     }
 
-    // 스타일 강조
+    // 완치 완료 시 스타일 강조 및 히스토리 기록
     if (isFinalCompleted) {
       sheet.getRange(targetRow, 1, 1, rowData.length).setBackground("#ecfdf5");
-      const histSheet = getOrCreateSheet(ss, SHEET_NAME_HISTORY, headers);
+      const histSheet = getOrCreateSheet(ss, SHEET_NAME_HISTORY, HEADERS_15);
       histSheet.appendRow(rowData);
     }
 
@@ -264,7 +389,8 @@ function doPost(e) {
       row: targetRow,
       stamps: [s1 === "✓ 완료", s2 === "✓ 완료", s3 === "✓ 완료", s4 === "✓ 완료"],
       finalCompleted: isFinalCompleted,
-      hintCount: hintCount
+      hintCount: hintCount,
+      startedAt: startedAt
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
@@ -276,7 +402,7 @@ function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
-    // 📢 GET 방식으로도 긴급 공지 전송 지원 (CORS 없이 안전 전송)
+    // 📢 GET 방식으로도 긴급 공지 전송 지원
     if (e && e.parameter && e.parameter.action === "sendNotice") {
       saveNoticeData(ss, e.parameter.msg, e.parameter.cls, e.parameter.timestamp || e.parameter.ts);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "broadcasted_via_get" }))
@@ -294,24 +420,25 @@ function doGet(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    // 🛠️ 시트 열 구조 자동 진단 및 자가 복구
+    autoFixAndAlignSheet(sheet);
+
     const values = sheet.getDataRange().getValues();
     const filterClsRaw = e && e.parameter && e.parameter.cls ? e.parameter.cls : "";
     const filterClsNum = extractClassNum(filterClsRaw);
 
-    const headerRow = values[0] || [];
-    const hasFinalHeader = String(headerRow[8] || "").includes("코드");
-    const offset = hasFinalHeader ? 1 : 0;
-
+    const props = PropertiesService.getScriptProperties();
     const groups = [];
+
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
       const rClsNum = extractClassNum(row[0]);
       if (filterClsNum && rClsNum !== filterClsNum) continue;
 
       const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
+      const leaderName = String(row[2] || "").trim();
 
-      const clearTimeIdx = 10 + offset;
-      let clearVal = row[clearTimeIdx];
+      let clearVal = row[11];
       if (clearVal instanceof Date) {
         const mm = clearVal.getMinutes();
         const ssSec = clearVal.getSeconds();
@@ -320,24 +447,31 @@ function doGet(e) {
         clearVal = String(clearVal || "").replace(/^'/, "");
       }
 
-      const finalCodeVal = hasFinalHeader ? String(row[8] || "") : "";
-      const statusVal = String(row[12 + offset] || "");
+      const finalCodeVal = String(row[8] || "");
+      const statusVal = String(row[13] || "");
+      // 오직 최종 코드가 성공했거나 완치완료 상태일 때만 완치 완료
       const isCompleted = finalCodeVal.includes("성공") || statusVal.includes("완치완료");
+
+      // 시작 시각(startedAt) 가져오기
+      const startKey = "START_" + rClsNum + "_" + rGrp;
+      const leaderKey = "START_LEADER_" + leaderName.toLowerCase();
+      let startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
 
       groups.push({
         cls: row[0],
         clsNum: rClsNum,
         grp: Number(rGrp) || row[1],
-        leader: row[2],
+        leader: leaderName,
         members: row[3],
         stamps: [row[4] === "✓ 완료", row[5] === "✓ 완료", row[6] === "✓ 완료", row[7] === "✓ 완료"],
         finalCode: finalCodeVal,
-        hintCount: Number(row[8 + offset]) || 0,
-        timeDisplay: String(row[9 + offset] || ""),
+        hintCount: Number(row[9]) || 0,
+        timeDisplay: String(row[10] || ""),
         clearTimeStr: (clearVal !== "-" && isCompleted) ? clearVal : null,
-        grade: row[11 + offset],
+        grade: row[12],
         finalCompleted: isCompleted,
-        updatedAt: row[13 + offset] instanceof Date ? Utilities.formatDate(row[13 + offset], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[13 + offset]
+        startedAt: startedAt,
+        updatedAt: row[14] instanceof Date ? Utilities.formatDate(row[14], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[14]
       });
     }
 
@@ -354,20 +488,10 @@ function doGet(e) {
 
 /**
  * 🛠️ [선택 실행] 구글 시트 기존 학급 열 정규화 함수
- * 구글 시트 Apps Script 에디터에서 이 함수를 선택하고 [실행]을 누르면,
- * 기존에 '21반', '24반' 등으로 기록된 데이터를 모두 '1', '4' 등 순수 반 번호로 자동 일괄 정리합니다.
  */
 function normalizeAllSheetClasses() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
   if (!sheet) return;
-  const range = sheet.getDataRange();
-  const values = range.getValues();
-  for (let i = 1; i < values.length; i++) {
-    const rawCls = values[i][0];
-    const n = extractClassNum(rawCls);
-    if (n) {
-      sheet.getRange(i + 1, 1).setValue(n);
-    }
-  }
+  autoFixAndAlignSheet(sheet);
 }
