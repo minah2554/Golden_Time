@@ -1859,10 +1859,10 @@
         return normAns(v) === normAns(target);
       },
       2: v => {
-        // [CHART 02 순환기내과] 정답: 4126 (4126 및 4129 모두 정답 인정)
+        // [CHART 02 순환기내과] 정답: 4126
         const clean = normAns(v);
         const target = (window.GAME_ANSWERS && window.GAME_ANSWERS.chart2) ? normAns(window.GAME_ANSWERS.chart2) : "4126";
-        return clean === "4126" || clean === "4129" || clean === target;
+        return clean === "4126" || clean === target;
       },
       3: v => {
         const target = (window.GAME_ANSWERS && window.GAME_ANSWERS.chart3) ? window.GAME_ANSWERS.chart3 : "8522";
