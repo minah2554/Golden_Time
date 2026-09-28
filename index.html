@@ -2086,7 +2086,8 @@
         const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0'), ss = String(elapsedSec % 60).padStart(2, '0');
         const rm = String(Math.floor(G.sec / 60)).padStart(2, '0'), rs = String(G.sec % 60).padStart(2, '0');
         const isDone = !!G.finalCompleted;
-        const timeDisp = (isDone && G.clearTimeStr) ? ('완료(' + G.clearTimeStr + ')') : (mm + ':' + ss + ' 경과 (남은 ' + rm + ':' + rs + ')');
+        const cleanClearStr = G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '').trim() : (mm + ':' + ss);
+        const timeDisp = (isDone && cleanClearStr) ? ('완료(' + cleanClearStr + ')') : (mm + ':' + ss + ' 경과 (남은 ' + rm + ':' + rs + ')');
         const gObj = calcGrade(G.hintCount || 0, elapsedSec);
 
         const payload = Object.assign({
@@ -2098,7 +2099,7 @@
           hintCount: G.hintCount || 0,
           startedAt: G.startedAt || null,
           timeDisplay: timeDisp,
-          clearTimeStr: (isDone && G.clearTimeStr) ? ("'" + G.clearTimeStr) : null,
+          clearTimeStr: isDone ? ("'" + cleanClearStr) : null,
           finalCompleted: isDone,
           grade: isDone ? gObj.label : '-',
           sec: G.sec
@@ -2360,7 +2361,7 @@
       if (isResume) {
         const clearedCount = G.stamps.filter(Boolean).length;
         if (G.finalCompleted) {
-          toast('🏆 ' + leader + ' 팀장님 모둠은 이미 완치 완료(' + (G.clearTimeStr || '') + ') 상태입니다!', 'ok');
+          toast('🏆 ' + leader + ' 팀장님 모둠은 이미 완치 완료(' + (G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '') : '') + ') 상태입니다!', 'ok');
           setTimeout(showCert, 500);
           return;
         } else {
@@ -2619,7 +2620,7 @@
         const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
         const fm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
         const fs = String(elapsedSec % 60).padStart(2, '0');
-        G.clearTimeStr = fm + ':' + fs;
+        G.clearTimeStr = "'" + fm + ':' + fs;
         G.sec = Math.max(0, 35 * 60 - elapsedSec);
         saveLS();
         syncToGoogleSheet();
@@ -2720,7 +2721,9 @@
       set('cert-leader', G.player.leader || '─');
       set('cert-team', (Array.isArray(G.player.members) ? G.player.members.join(', ') : G.player.members) || '─');
       set('cert-class', G.player.cls + ' ' + G.player.grp + '모둠');
-      set('cert-time', mm + '분 ' + ss + '초');
+      const clearClean = G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '').trim() : null;
+      const certTimeText = clearClean ? (clearClean.includes(':') ? (parseInt(clearClean.split(':')[0]) + '분 ' + parseInt(clearClean.split(':')[1]) + '초') : clearClean) : (mm + '분 ' + ss + '초');
+      set('cert-time', certTimeText);
       set('cert-hint-count', G.hintCount || 0);
       const gradeBanner = document.getElementById('cert-grade-banner');
       if (gradeBanner) gradeBanner.className = 'cert-grade-banner ' + g.css;

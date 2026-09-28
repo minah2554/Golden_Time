@@ -73,6 +73,7 @@ function getOrCreateSheet(ss, name, headers) {
     sheet = ss.insertSheet(name);
     sheet.appendRow(headers);
     formatHeader(sheet, headers.length);
+    sheet.getRange(2, 12, Math.max(sheet.getMaxRows() - 1, 1), 1).setNumberFormat("@");
   }
   return sheet;
 }
@@ -115,6 +116,21 @@ function autoFixAndAlignSheet(sheet) {
       const r = row.slice(0, 15);
       while (r.length < 15) r.push("");
       r[0] = extractClassNum(r[0]) || r[0]; // 학급 정규화
+
+      // 완치 소요시간(L열, 12번째 열 / 인덱스 11) 날짜/시간 변환 방지 및 홑따옴표(') 접두사 순수 텍스트 보장
+      let cVal = r[11];
+      if (cVal instanceof Date) {
+        const mm = String(cVal.getMinutes()).padStart(2, '0');
+        const ss = String(cVal.getSeconds()).padStart(2, '0');
+        r[11] = "'" + mm + ":" + ss;
+        needUpdate = true;
+      } else if (cVal && cVal !== "-") {
+        const sVal = String(cVal).trim();
+        if (!sVal.startsWith("'")) {
+          r[11] = "'" + sVal;
+          needUpdate = true;
+        }
+      }
       return r;
     }
 
@@ -141,8 +157,12 @@ function autoFixAndAlignSheet(sheet) {
     const hintCount = (row[8] !== undefined && row[8] !== "") ? row[8] : 0;
     const timeDisp = row[9] || "";
     let clearVal = row[10];
-    if (clearVal && clearVal !== "-") {
-      clearVal = "'" + String(clearVal).replace(/^'/, "");
+    if (clearVal instanceof Date) {
+      const mm = String(clearVal.getMinutes()).padStart(2, '0');
+      const ss = String(clearVal.getSeconds()).padStart(2, '0');
+      clearVal = "'" + mm + ":" + ss;
+    } else if (clearVal && clearVal !== "-") {
+      clearVal = "'" + String(clearVal).replace(/^'/, "").trim();
     } else {
       clearVal = "-";
     }
@@ -167,6 +187,8 @@ function autoFixAndAlignSheet(sheet) {
     sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
     formatHeader(sheet, HEADERS_15.length);
     sheet.getRange(2, 1, fixedValues.length, 15).setValues(fixedValues);
+    // 완치 소요시간 열(L열) 서식을 텍스트(@)로 일괄 지정하여 시트 자동 날짜 변환 방지
+    sheet.getRange(2, 12, fixedValues.length, 1).setNumberFormat("@");
   }
 }
 
@@ -275,9 +297,14 @@ function doPost(e) {
     let hintCount = Number(data.hintCount || 0);
     const timeDisplay = data.timeDisplay || "";
 
-    let clearTimeStr = data.clearTimeStr || (isFinalCompleted ? timeDisplay : "");
+    // ⏱ 완치 소요 시간: 시트에서 날짜나 시간으로 자동 변환되지 않도록 데이터 값 맨 앞에 홑따옴표(')를 붙여 순수 텍스트 형식으로 저장
+    let clearTimeStr = data.clearTimeStr;
+    if (!clearTimeStr && isFinalCompleted) {
+      const m = String(timeDisplay).match(/([0-9]{1,2}\s*:\s*[0-9]{2})/);
+      clearTimeStr = m ? m[1] : timeDisplay;
+    }
     if (clearTimeStr && clearTimeStr !== "-") {
-      clearTimeStr = "'" + String(clearTimeStr).replace(/^'/, "");
+      clearTimeStr = "'" + String(clearTimeStr).replace(/^'/, "").trim();
     } else {
       clearTimeStr = "-";
     }
@@ -331,7 +358,13 @@ function doPost(e) {
       if (existingFinal && !isFinalCompleted) {
         isFinalCompleted = true;
         if (existingClearVal && existingClearVal !== "-") {
-          clearTimeStr = "'" + String(existingClearVal).replace(/^'/, "");
+          let cVal = existingClearVal;
+          if (cVal instanceof Date) {
+            const mm = String(cVal.getMinutes()).padStart(2, '0');
+            const ss = String(cVal.getSeconds()).padStart(2, '0');
+            cVal = mm + ':' + ss;
+          }
+          clearTimeStr = "'" + String(cVal).replace(/^'/, "").trim();
         }
       }
 
@@ -376,12 +409,15 @@ function doPost(e) {
       sheet.appendRow(rowData);
       targetRow = sheet.getLastRow();
     }
+    // 완치 소요시간 열(L열) 서식을 텍스트(@)로 명시적 지정하여 시트의 날짜/시간 자동 변환 원천 차단
+    sheet.getRange(targetRow, 12).setNumberFormat("@");
 
     // 완치 완료 시 스타일 강조 및 히스토리 기록
     if (isFinalCompleted) {
       sheet.getRange(targetRow, 1, 1, rowData.length).setBackground("#ecfdf5");
       const histSheet = getOrCreateSheet(ss, SHEET_NAME_HISTORY, HEADERS_15);
       histSheet.appendRow(rowData);
+      histSheet.getRange(histSheet.getLastRow(), 12).setNumberFormat("@");
     }
 
     return ContentService.createTextOutput(JSON.stringify({
