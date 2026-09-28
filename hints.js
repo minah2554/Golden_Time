@@ -50,7 +50,7 @@ window.GAME_HINTS = {
       title: "🔑 암호 힌트",
       lines: [
         "• <span class=\"text-amber-400 font-bold\">코드 A (온몸 순환):</span> 홀수 번째인 1, 3, 5단계 번호의 합산입니다 (15 + 20 + 6 = <span class=\"text-white font-bold\">41</span>).",
-        "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold\">29</span>).",
+        "• <span class=\"text-cyan-400 font-bold\">코드 B (허파 순환):</span> 단계별 누적 연산입니다 (출발 9 + 폐 10 = 19 ➔ 귀환로 2 + 도착 5 합산 = <span class=\"text-white font-bold\">26</span>).",
         "• 최종 코드는 앞 2자리(A)와 뒤 2자리(B)를 연결한 <span class=\"text-green-400 font-bold text-base\">4자리 숫자</span>입니다."
       ]
     }
