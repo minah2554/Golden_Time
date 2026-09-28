@@ -846,8 +846,8 @@
       }
     }
   </style>
-  <script src="answers.js?v=20260928_fix"></script>
-  <script src="hints.js?v=20260928_fix"></script>
+  <script src="answers.js?v=1.4"></script>
+  <script src="hints.js?v=1.4"></script>
 </head>
 
 <body class="bg-[#060912]">
@@ -859,10 +859,10 @@
     <div class="grid-overlay"></div>
     <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8">
 
-      <div onclick="openTeacherLogin()" class="flex items-center gap-2 mb-6 px-4 py-2 rounded-full border border-red-500/40 bg-red-500/10 cursor-pointer hover:bg-red-500/20 hover:border-red-400 transition-all select-none group" title="시스템 관제">
-        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
-        <span class="text-red-400 font-bold text-xs orb tracking-widest group-hover:text-red-300">CRITICAL ALERT — CODE BLUE ACTIVATED</span>
-        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+      <div onclick="openTeacherLogin()" class="inline-flex items-center justify-center gap-1.5 sm:gap-2 mb-6 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full border border-red-500/40 bg-red-500/10 cursor-pointer hover:bg-red-500/20 hover:border-red-400 transition-all select-none group text-center max-w-[96vw] mx-auto shadow-sm" title="시스템 관제">
+        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
+        <span class="text-red-400 font-bold text-[10px] min-[380px]:text-[11px] sm:text-xs orb tracking-normal min-[380px]:tracking-wider sm:tracking-widest text-center group-hover:text-red-300 whitespace-nowrap leading-tight">CRITICAL ALERT — CODE BLUE ACTIVATED</span>
+        <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
       </div>
 
       <div class="text-center mb-5">
@@ -969,7 +969,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v1.3</span>
+            <span class="f-ver">v1.4</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1091,7 +1091,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v1.3</span>
+            <span class="f-ver">v1.4</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1308,7 +1308,7 @@
             <span class="f-sep text-slate-600">·</span>
             <span class="f-title-group inline-flex items-center gap-1.5">
               <span class="f-tag">Golden Time Medical Center</span>
-              <span class="f-ver">v1.3</span>
+              <span class="f-ver">v1.4</span>
             </span>
           </div>
           <div class="f-legal-line">
@@ -2948,9 +2948,12 @@
         }
       } catch (e) { }
 
-      const isHashMatch = (h === "e90f23b2bfa9a6dd6313364fa4e6777c98c0b533cb1b0fa3f6ce4048cfc526be");
+      // SHA-256 for "minah" is ad5f52f58ed6ec6e7a641f2416f347674ac5933470079f2a18bc6269b1e80796
+      const isHashMatch = (h === "ad5f52f58ed6ec6e7a641f2416f347674ac5933470079f2a18bc6269b1e80796");
+      const _s = [109, 105, 110, 97, 104];
+      const isByteMatch = cleanVal.length === _s.length && _s.every((c, i) => cleanVal.charCodeAt(i) === c);
 
-      if (isHashMatch) {
+      if (isHashMatch || isByteMatch) {
         closeModal('modal-tlogin');
         if (el) el.value = '';
         const errEl = document.getElementById('tpw-err');
