@@ -340,13 +340,75 @@ function doPost(e) {
 
     // 🛡️ [데이터 보호 및 리셋 로직]
     if (data.action === "resetGroup") {
+      const rCls = clsNum;
+      const rGrp = String(grp).replace(/[^0-9]/g, "");
+      const startKey = "START_" + rCls + "_" + rGrp;
       props.deleteProperty(startKey);
-      if (leader) props.deleteProperty(leaderKey);
-      if (targetRow > 0) {
-        sheet.deleteRow(targetRow);
+
+      // 리셋 식별 타임스탬프 기록 (학생 기기에서 즉시 감지하여 캐시 클리어)
+      const nowTs = Date.now();
+      props.setProperty("RESET_" + rCls + "_" + rGrp, String(nowTs));
+
+      // 시트에서 해당 학급 및 모둠의 모든 행 탐색 및 삭제
+      const allVals = sheet.getDataRange().getValues();
+      let delCount = 0;
+      for (let i = allVals.length - 1; i >= 1; i--) {
+        const rowClsNum = extractClassNum(allVals[i][0]);
+        const rowGrpNum = String(allVals[i][1]).replace(/[^0-9]/g, "");
+        const rowLeader = String(allVals[i][2] || "").trim();
+
+        if (rowClsNum === rCls && (rowGrpNum === rGrp || (leader && rowLeader === leader))) {
+          if (rowLeader) {
+            props.deleteProperty("START_LEADER_" + rowLeader.toLowerCase().trim());
+          }
+          sheet.deleteRow(i + 1);
+          delCount++;
+        }
       }
-      return ContentService.createTextOutput(JSON.stringify({ status: "success", action: "resetGroup" }))
-        .setMimeType(ContentService.MimeType.JSON);
+      if (leader) props.deleteProperty("START_LEADER_" + leader.toLowerCase().trim());
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "resetGroup",
+        cls: rCls,
+        grp: rGrp,
+        deleted: delCount,
+        resetTs: nowTs
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    if (data.action === "resetAll") {
+      const rCls = clsNum;
+      const nowTs = Date.now();
+      const allProps = props.getProperties();
+      for (let k in allProps) {
+        if (k.startsWith("START_" + rCls + "_") || k.startsWith("RESET_" + rCls + "_")) {
+          props.deleteProperty(k);
+        }
+      }
+      props.setProperty("RESET_CLASS_" + rCls, String(nowTs));
+
+      const allVals = sheet.getDataRange().getValues();
+      let delCount = 0;
+      for (let i = allVals.length - 1; i >= 1; i--) {
+        const rowClsNum = extractClassNum(allVals[i][0]);
+        if (rowClsNum === rCls) {
+          const rowLeader = String(allVals[i][2] || "").trim();
+          if (rowLeader) {
+            props.deleteProperty("START_LEADER_" + rowLeader.toLowerCase().trim());
+          }
+          sheet.deleteRow(i + 1);
+          delCount++;
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "resetAll",
+        cls: rCls,
+        deleted: delCount,
+        resetTs: nowTs
+      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     if (targetRow > 0) {
@@ -511,10 +573,20 @@ function doGet(e) {
       });
     }
 
+    // 🔄 리셋 타임스탬프 정보 수집 (학생 기기에서 캐시 자동 강제 초기화 감지용)
+    const allProps = props.getProperties();
+    const resets = {};
+    for (let k in allProps) {
+      if (k.startsWith("RESET_")) {
+        resets[k] = allProps[k];
+      }
+    }
+
     return ContentService.createTextOutput(JSON.stringify({
       status: "success",
       notice: noticeData,
-      groups: groups
+      groups: groups,
+      resets: resets
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
