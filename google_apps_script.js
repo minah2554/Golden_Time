@@ -441,6 +441,9 @@ function doGet(e) {
 
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
+      // 학급, 모둠, 팀장이 모두 비어있는 유령/빈 행은 건너뜁니다
+      if (!row[0] && !row[1] && !row[2]) continue;
+
       const rClsNum = extractClassNum(row[0]);
       if (filterClsNum && rClsNum !== filterClsNum) continue;
 
