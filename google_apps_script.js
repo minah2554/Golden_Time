@@ -82,6 +82,8 @@ function getOrCreateSheet(ss, name, headers) {
  * 🛠️ [시트 레이아웃 자동 정렬 및 열 어긋남 복구]
  * 16행 이후 도입된 '최종 통합 치료' 열로 인해 기존 2~15행 데이터와 헤더가 밀려있던 현상을
  * 과거 기록 유실 없이 100% 깔끔하게 재배열하여 일치시킵니다.
+/**
+ * 🛠️ [선택 실행] 시트 열 구조 점검 및 서식 보정 함수 (기존 데이터 절대 삭제 금지)
  */
 function autoFixAndAlignSheet(sheet) {
   if (!sheet) return;
@@ -95,147 +97,17 @@ function autoFixAndAlignSheet(sheet) {
 
   const needsHeaderFix = !col9Header.includes("최종") && !col9Header.includes("코드");
 
-  if (lastRow === 1) {
-    if (needsHeaderFix) {
-      sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
-      formatHeader(sheet, HEADERS_15.length);
-    }
-    return;
-  }
-
-  const dataRange = sheet.getRange(2, 1, lastRow - 1, Math.max(lastCol, 15));
-  const values = dataRange.getValues();
-  let needUpdate = needsHeaderFix;
-
-  const fixedValues = values.map(row => {
-    const val8 = String(row[8] || "").trim();
-    // 15열 형식 (I열에 '성공', '해제', '잠김'이 위치하는 경우)
-    const isAlready15 = val8.includes("성공") || val8.includes("해제") || val8.includes("잠김");
-
-    if (isAlready15) {
-      const r = row.slice(0, 15);
-      while (r.length < 15) r.push("");
-      r[0] = extractClassNum(r[0]) || r[0]; // 학급 정규화
-
-      // 완치 소요시간(L열, 12번째 열 / 인덱스 11) 날짜/시간 변환 방지 및 홑따옴표(') 접두사 순수 텍스트 보장
-      let cVal = r[11];
-      if (cVal instanceof Date) {
-        const mm = String(cVal.getMinutes()).padStart(2, '0');
-        const ss = String(cVal.getSeconds()).padStart(2, '0');
-        r[11] = "'" + mm + ":" + ss;
-        needUpdate = true;
-      } else if (cVal && cVal !== "-") {
-        const sVal = String(cVal).trim();
-        if (!sVal.startsWith("'")) {
-          r[11] = "'" + sVal;
-          needUpdate = true;
-        }
-      }
-      return r;
-    }
-
-    // 14열 구 형식인 경우 (I열에 힌트 숫자가 있고 전체가 한 칸씩 좌측에 배치됨)
-    needUpdate = true;
-    const cls = extractClassNum(row[0]) || row[0];
-    const grp = row[1];
-    const leader = row[2];
-    const members = row[3];
-    const s1 = row[4];
-    const s2 = row[5];
-    const s3 = row[6];
-    const s4 = row[7];
-
-    const oldStatus = String(row[12] || "");
-    const allStamps = (s1 === "✓ 완료" && s2 === "✓ 완료" && s3 === "✓ 완료" && s4 === "✓ 완료");
-    let finalCol = "🔒 잠김";
-    if (oldStatus.includes("완치완료")) {
-      finalCol = "✓ 성공";
-    } else if (allStamps) {
-      finalCol = "🔓 해제됨(진행중)";
-    }
-
-    const hintCount = (row[8] !== undefined && row[8] !== "") ? row[8] : 0;
-    const timeDisp = row[9] || "";
-    let clearVal = row[10];
-    if (clearVal instanceof Date) {
-      const mm = String(clearVal.getMinutes()).padStart(2, '0');
-      const ss = String(clearVal.getSeconds()).padStart(2, '0');
-      clearVal = "'" + mm + ":" + ss;
-    } else if (clearVal && clearVal !== "-") {
-      clearVal = "'" + String(clearVal).replace(/^'/, "").trim();
-    } else {
-      clearVal = "-";
-    }
-    const grade = row[11] || "-";
-    const status = oldStatus || (finalCol === "✓ 성공" ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중"));
-    const updated = row[13] || "";
-
-      return [
-        cls, grp, leader, members,
-        s1, s2, s3, s4,
-        finalCol,
-        hintCount,
-        timeDisp,
-        clearVal,
-        grade,
-        status,
-        updated
-      ];
-    });
-
-  // 🛡️ [중복 행 자동 통합 및 정리]: 동일한 학급+모둠 또는 팀장 기록이 중복 존재하는 경우 완치 완료 기록을 우선 보존하고 중복 제거
-  const groupMap = {};
-  fixedValues.forEach(row => {
-    const rCls = String(row[0] || "").trim();
-    const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
-    const rLeader = String(row[2] || "").trim().toLowerCase();
-    const key = (rCls && rGrp) ? (rCls + "_" + rGrp) : (rLeader ? ("L_" + rLeader) : null);
-    const isCompleted = String(row[8] || "").includes("성공") || String(row[13] || "").includes("완치완료");
-
-    if (!key) return;
-
-    if (groupMap[key]) {
-      needUpdate = true;
-      const prev = groupMap[key];
-      const prevCompleted = String(prev[8] || "").includes("성공") || String(prev[13] || "").includes("완치완료");
-      // 완치완료된 레코드를 최우선 보존 (진행중 기록으로 덮어써지지 않음)
-      if (!prevCompleted && isCompleted) {
-        groupMap[key] = row;
-      }
-    } else {
-      groupMap[key] = row;
-    }
-  });
-
-  const finalRows = [];
-  const processedKeys = new Set();
-  fixedValues.forEach(row => {
-    const rCls = String(row[0] || "").trim();
-    const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
-    const rLeader = String(row[2] || "").trim().toLowerCase();
-    const key = (rCls && rGrp) ? (rCls + "_" + rGrp) : (rLeader ? ("L_" + rLeader) : null);
-    if (!key) {
-      finalRows.push(row);
-    } else if (!processedKeys.has(key)) {
-      processedKeys.add(key);
-      finalRows.push(groupMap[key]);
-    }
-  });
-
-  if (finalRows.length !== values.length) {
-    needUpdate = true;
-  }
-
-  if (needUpdate) {
-    sheet.clearContents();
+  // 1행 헤더가 구형인 경우에만 1행 헤더만 갱신
+  if (needsHeaderFix) {
     sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
     formatHeader(sheet, HEADERS_15.length);
-    if (finalRows.length > 0) {
-      sheet.getRange(2, 1, finalRows.length, 15).setValues(finalRows);
-      // 완치 소요시간 열(L열) 서식을 텍스트(@)로 일괄 지정하여 시트 자동 날짜 변환 방지
-      sheet.getRange(2, 12, finalRows.length, 1).setNumberFormat("@");
-    }
   }
+
+  // 데이터 행이 없으면 종료
+  if (lastRow <= 1) return;
+
+  // 완치 소요시간 열(L열, 12번째 열) 서식을 텍스트(@)로 안전하게 지정
+  sheet.getRange(2, 12, lastRow - 1, 1).setNumberFormat("@");
 }
 
 /**
@@ -325,7 +197,6 @@ function doPost(e) {
     }
 
     const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
-    autoFixAndAlignSheet(sheet);
 
     const rawCls = data.cls || "";
     const clsNum = extractClassNum(rawCls);
@@ -595,9 +466,6 @@ function doGet(e) {
         groups: []
       })).setMimeType(ContentService.MimeType.JSON);
     }
-
-    // 🛠️ 시트 열 구조 자동 진단 및 자가 복구
-    autoFixAndAlignSheet(sheet);
 
     const values = sheet.getDataRange().getValues();
     const filterClsRaw = e && e.parameter && e.parameter.cls ? e.parameter.cls : "";
