@@ -170,25 +170,71 @@ function autoFixAndAlignSheet(sheet) {
     const status = oldStatus || (finalCol === "✓ 성공" ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중"));
     const updated = row[13] || "";
 
-    return [
-      cls, grp, leader, members,
-      s1, s2, s3, s4,
-      finalCol,
-      hintCount,
-      timeDisp,
-      clearVal,
-      grade,
-      status,
-      updated
-    ];
+      return [
+        cls, grp, leader, members,
+        s1, s2, s3, s4,
+        finalCol,
+        hintCount,
+        timeDisp,
+        clearVal,
+        grade,
+        status,
+        updated
+      ];
+    });
+
+  // 🛡️ [중복 행 자동 통합 및 정리]: 동일한 학급+모둠 또는 팀장 기록이 중복 존재하는 경우 완치 완료 기록을 우선 보존하고 중복 제거
+  const groupMap = {};
+  fixedValues.forEach(row => {
+    const rCls = String(row[0] || "").trim();
+    const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
+    const rLeader = String(row[2] || "").trim().toLowerCase();
+    const key = (rCls && rGrp) ? (rCls + "_" + rGrp) : (rLeader ? ("L_" + rLeader) : null);
+    const isCompleted = String(row[8] || "").includes("성공") || String(row[13] || "").includes("완치완료");
+
+    if (!key) return;
+
+    if (groupMap[key]) {
+      needUpdate = true;
+      const prev = groupMap[key];
+      const prevCompleted = String(prev[8] || "").includes("성공") || String(prev[13] || "").includes("완치완료");
+      // 완치완료된 레코드를 최우선 보존 (진행중 기록으로 덮어써지지 않음)
+      if (!prevCompleted && isCompleted) {
+        groupMap[key] = row;
+      }
+    } else {
+      groupMap[key] = row;
+    }
   });
 
+  const finalRows = [];
+  const processedKeys = new Set();
+  fixedValues.forEach(row => {
+    const rCls = String(row[0] || "").trim();
+    const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
+    const rLeader = String(row[2] || "").trim().toLowerCase();
+    const key = (rCls && rGrp) ? (rCls + "_" + rGrp) : (rLeader ? ("L_" + rLeader) : null);
+    if (!key) {
+      finalRows.push(row);
+    } else if (!processedKeys.has(key)) {
+      processedKeys.add(key);
+      finalRows.push(groupMap[key]);
+    }
+  });
+
+  if (finalRows.length !== values.length) {
+    needUpdate = true;
+  }
+
   if (needUpdate) {
+    sheet.clearContents();
     sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
     formatHeader(sheet, HEADERS_15.length);
-    sheet.getRange(2, 1, fixedValues.length, 15).setValues(fixedValues);
-    // 완치 소요시간 열(L열) 서식을 텍스트(@)로 일괄 지정하여 시트 자동 날짜 변환 방지
-    sheet.getRange(2, 12, fixedValues.length, 1).setNumberFormat("@");
+    if (finalRows.length > 0) {
+      sheet.getRange(2, 1, finalRows.length, 15).setValues(finalRows);
+      // 완치 소요시간 열(L열) 서식을 텍스트(@)로 일괄 지정하여 시트 자동 날짜 변환 방지
+      sheet.getRange(2, 12, finalRows.length, 1).setNumberFormat("@");
+    }
   }
 }
 
@@ -322,19 +368,28 @@ function doPost(e) {
       startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
     }
 
-    // 기존 해당 학급+모둠 또는 학급+팀장 행 탐색
+    // 기존 해당 학급+모둠 또는 학급+팀장 행 탐색 (중복 행 감지 및 단일화)
     const values = sheet.getDataRange().getValues();
-    let targetRow = -1;
+    const matchRows = [];
 
     for (let i = 1; i < values.length; i++) {
       const rowClsNum = extractClassNum(values[i][0]);
       const rowGrpNum = String(values[i][1]).replace(/[^0-9]/g, "");
-      const rowLeader = String(values[i][2] || "").trim();
+      const rowLeader = String(values[i][2] || "").trim().toLowerCase();
+      const isLeaderMatch = leader && rowLeader && (rowLeader === leader.toLowerCase());
+      const isClassMatch = !rowClsNum || !clsNum || (rowClsNum === clsNum);
+      const isGroupMatch = grp && rowGrpNum && (rowGrpNum === grp);
 
-      // 학급 일치 && (모둠 일치 또는 팀장 이름 일치)
-      if (rowClsNum === clsNum && (rowGrpNum === grp || (leader && rowLeader === leader))) {
-        targetRow = i + 1;
-        break;
+      if ((isLeaderMatch && isClassMatch) || (isGroupMatch && isClassMatch) || isLeaderMatch) {
+        matchRows.push(i + 1); // 1-indexed row number
+      }
+    }
+
+    let targetRow = matchRows.length > 0 ? matchRows[0] : -1;
+    // 동일 모둠의 중복 행이 존재할 경우 하위 중복 행들을 삭제하여 항상 1개의 행만 유지
+    if (matchRows.length > 1) {
+      for (let m = matchRows.length - 1; m >= 1; m--) {
+        sheet.deleteRow(matchRows[m]);
       }
     }
 
@@ -411,13 +466,18 @@ function doPost(e) {
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
+    let finalGradeVal = data.grade || (isFinalCompleted ? "완료" : "-");
+    let finalTimeDispVal = timeDisplay;
+
     if (targetRow > 0) {
       const existing = values[targetRow - 1];
       const existingFinal = String(existing[13] || "").includes("완치완료") || String(existing[8] || "").includes("성공");
       const existingClearVal = existing[11];
+      const existingGrade = existing[12];
+      const existingTimeDisp = existing[10];
 
-      // 1. 이미 완치 완료된 경우 미완료로 다운그레이드 방지
-      if (existingFinal && !isFinalCompleted) {
+      // 1. 이미 완치 완료된 경우 완치 상태, 소요시간, 등급 영구 고정 (재접속 시간으로 덮어쓰기 방지)
+      if (existingFinal) {
         isFinalCompleted = true;
         if (existingClearVal && existingClearVal !== "-") {
           let cVal = existingClearVal;
@@ -427,6 +487,12 @@ function doPost(e) {
             cVal = mm + ':' + ss;
           }
           clearTimeStr = "'" + String(cVal).replace(/^'/, "").trim();
+        }
+        if (existingGrade && existingGrade !== "-") {
+          finalGradeVal = existingGrade;
+        }
+        if (existingTimeDisp && String(existingTimeDisp).includes("완료")) {
+          finalTimeDispVal = existingTimeDisp;
         }
       }
 
@@ -443,7 +509,6 @@ function doPost(e) {
     const allStamps = (s1 === "✓ 완료" && s2 === "✓ 완료" && s3 === "✓ 완료" && s4 === "✓ 완료");
     const finalCodeCol = isFinalCompleted ? "✓ 성공" : (allStamps ? "🔓 해제됨(진행중)" : "🔒 잠김");
 
-    const grade = data.grade || (isFinalCompleted ? "완료" : "-");
     const status = isFinalCompleted ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중");
     const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
 
@@ -458,9 +523,9 @@ function doPost(e) {
       s1, s2, s3, s4,
       finalCodeCol,
       hintCount,
-      timeDisplay,
+      finalTimeDispVal,
       clearTimeStr,
-      grade,
+      finalGradeVal,
       status,
       nowStr
     ];
@@ -474,12 +539,25 @@ function doPost(e) {
     // 완치 소요시간 열(L열) 서식을 텍스트(@)로 명시적 지정하여 시트의 날짜/시간 자동 변환 원천 차단
     sheet.getRange(targetRow, 12).setNumberFormat("@");
 
-    // 완치 완료 시 스타일 강조 및 히스토리 기록
+    // 완치 완료 시 스타일 강조 및 히스토리 기록 (중복 히스토리 방지)
     if (isFinalCompleted) {
       sheet.getRange(targetRow, 1, 1, rowData.length).setBackground("#ecfdf5");
       const histSheet = getOrCreateSheet(ss, SHEET_NAME_HISTORY, HEADERS_15);
-      histSheet.appendRow(rowData);
-      histSheet.getRange(histSheet.getLastRow(), 12).setNumberFormat("@");
+      const histVals = histSheet.getDataRange().getValues();
+      let alreadyInHist = false;
+      for (let h = 1; h < histVals.length; h++) {
+        const hCls = extractClassNum(histVals[h][0]);
+        const hGrp = String(histVals[h][1]).replace(/[^0-9]/g, "");
+        const hLeader = String(histVals[h][2] || "").trim().toLowerCase();
+        if ((hCls === clsNum && hGrp === grp) || (leader && hLeader === leader.toLowerCase())) {
+          alreadyInHist = true;
+          break;
+        }
+      }
+      if (!alreadyInHist) {
+        histSheet.appendRow(rowData);
+        histSheet.getRange(histSheet.getLastRow(), 12).setNumberFormat("@");
+      }
     }
 
     return ContentService.createTextOutput(JSON.stringify({
@@ -526,7 +604,7 @@ function doGet(e) {
     const filterClsNum = extractClassNum(filterClsRaw);
 
     const props = PropertiesService.getScriptProperties();
-    const groups = [];
+    const groupsMap = {};
 
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
@@ -555,7 +633,17 @@ function doGet(e) {
       const leaderKey = "START_LEADER_" + leaderName.toLowerCase();
       let startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
 
-      groups.push({
+      const tDisp = String(row[10] || "");
+      // startedAt이 0이고 진행중인 경우 timeDisplay(예: "01:23 경과")에서 시작 시각 역산
+      if (startedAt === 0 && !isCompleted && tDisp) {
+        const m = tDisp.match(/([0-9]+)\s*:\s*([0-9]+)\s*경과/);
+        if (m) {
+          const elSec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
+          startedAt = Date.now() - (elSec * 1000);
+        }
+      }
+
+      const gInfo = {
         cls: row[0],
         clsNum: rClsNum,
         grp: Number(rGrp) || row[1],
@@ -564,14 +652,26 @@ function doGet(e) {
         stamps: [row[4] === "✓ 완료", row[5] === "✓ 완료", row[6] === "✓ 완료", row[7] === "✓ 완료"],
         finalCode: finalCodeVal,
         hintCount: Number(row[9]) || 0,
-        timeDisplay: String(row[10] || ""),
+        timeDisplay: tDisp,
         clearTimeStr: (clearVal !== "-" && isCompleted) ? clearVal : null,
         grade: row[12],
         finalCompleted: isCompleted,
         startedAt: startedAt,
         updatedAt: row[14] instanceof Date ? Utilities.formatDate(row[14], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[14]
-      });
+      };
+
+      const gKey = (rClsNum + "_" + (rGrp || leaderName)).toLowerCase();
+      if (groupsMap[gKey]) {
+        // 이미 해당 모둠이 존재할 경우, 완치 완료된 행을 우선 보존
+        if (!groupsMap[gKey].finalCompleted && isCompleted) {
+          groupsMap[gKey] = gInfo;
+        }
+      } else {
+        groupsMap[gKey] = gInfo;
+      }
     }
+
+    const groups = Object.values(groupsMap);
 
     // 🔄 리셋 타임스탬프 정보 수집 (학생 기기에서 캐시 자동 강제 초기화 감지용)
     const allProps = props.getProperties();

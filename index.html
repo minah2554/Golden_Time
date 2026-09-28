@@ -1841,6 +1841,8 @@
       startTime: null,
       clearDuration: null,
       clearTimeStr: null,
+      clearElapsedSec: null, // ★ 완치 확정 소요 시간(초) 영구 보존
+      finalGrade: null,      // ★ 완치 확정 등급 영구 보존
       finalCompleted: false,
     };
 
@@ -2065,6 +2067,21 @@
       return s;
     }
 
+    // 시간 문자열로부터 소요 초(Seconds)를 역산출하는 헬퍼 함수
+    function parseSecFromTimeStr(tStr) {
+      if (!tStr) return 0;
+      const s = String(tStr).replace(/^'/, '').trim();
+      const m1 = s.match(/([0-9]+)\s*분\s*([0-9]+)\s*초/);
+      if (m1) return parseInt(m1[1], 10) * 60 + parseInt(m1[2], 10);
+      const m2 = s.match(/([0-9]+)\s*:\s*([0-9]+)/);
+      if (m2) return parseInt(m2[1], 10) * 60 + parseInt(m2[2], 10);
+      if (s.includes('1899-12-30') || s.includes('T')) {
+        const d = new Date(s);
+        if (!isNaN(d.getTime())) return d.getMinutes() * 60 + d.getSeconds();
+      }
+      return 0;
+    }
+
     function saveGasUrl() {
       const inp = document.getElementById('gas-url-input');
       if (!inp) return;
@@ -2099,13 +2116,18 @@
     function syncToGoogleSheet(overrideData) {
       if (!GAS_WEB_APP_URL || !G.player || !G.player.grp) return;
       try {
-        const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+        const isDone = !!G.finalCompleted;
+        let elapsedSec;
+        if (isDone) {
+          elapsedSec = G.clearElapsedSec || parseSecFromTimeStr(G.clearTimeStr) || (G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec));
+        } else {
+          elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+        }
         const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0'), ss = String(elapsedSec % 60).padStart(2, '0');
         const rm = String(Math.floor(G.sec / 60)).padStart(2, '0'), rs = String(G.sec % 60).padStart(2, '0');
-        const isDone = !!G.finalCompleted;
         const cleanClearStr = G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '').trim() : (mm + ':' + ss);
         const timeDisp = (isDone && cleanClearStr) ? ('완료(' + cleanClearStr + ')') : (mm + ':' + ss + ' 경과 (남은 ' + rm + ':' + rs + ')');
-        const gObj = calcGrade(G.hintCount || 0, elapsedSec);
+        const gObj = G.finalGrade || calcGrade(G.hintCount || 0, elapsedSec);
 
         const payload = Object.assign({
           cls: normCls(G.player.cls) || '1',
@@ -2118,8 +2140,8 @@
           timeDisplay: timeDisp,
           clearTimeStr: isDone ? ("'" + cleanClearStr) : null,
           finalCompleted: isDone,
-          grade: isDone ? gObj.label : '-',
-          sec: G.sec
+          grade: isDone ? (gObj.label || gObj) : '-',
+          sec: isDone ? 0 : G.sec
         }, overrideData || {});
 
         fetch(GAS_WEB_APP_URL, {
@@ -2153,6 +2175,13 @@
               if (rowClsNorm === targetClsStr) {
                 const gNum = Number(String(gInfo.grp).replace(/[^0-9]/g, ''));
                 if (gNum >= 1 && gNum <= 6) {
+                  // startedAt이 누락되었지만 진행중인 경우 timeDisplay에서 파싱하여 실시간 타이머 가동 지원
+                  if (!gInfo.finalCompleted && (!gInfo.startedAt || Number(gInfo.startedAt) === 0) && gInfo.timeDisplay) {
+                    const el = parseSecFromTimeStr(gInfo.timeDisplay);
+                    if (el > 0) {
+                      gInfo.startedAt = Date.now() - (el * 1000);
+                    }
+                  }
                   grpStates[gNum] = Object.assign(grpStates[gNum] || {}, gInfo, {
                     grp: gNum,
                     cls: '2학년 ' + currentTeacherClass + '반'
@@ -2346,6 +2375,25 @@
 
         if (G.finalCompleted) {
           G.sec = 0;
+          G.running = false;
+          if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
+          const parsedSec = parseSecFromTimeStr(G.clearTimeStr || serverRecord.timeDisplay);
+          G.clearElapsedSec = serverRecord.clearElapsedSec || (parsedSec > 0 ? parsedSec : 0);
+          if (serverRecord.grade && serverRecord.grade !== '-') {
+            const gl = String(serverRecord.grade).charAt(0);
+            G.finalGrade = {
+              grade: gl,
+              label: serverRecord.grade,
+              color: gl === 'S' ? '#f59e0b' : gl === 'A' ? '#818cf8' : gl === 'B' ? '#22c55e' : '#06b6d4',
+              css: 'cert-grade-' + gl.toLowerCase(),
+              msg: gl === 'S' ? '타임 안에 힌트 없이 완벽 해독! 최고의 전문의!' :
+                   gl === 'A' ? '타임 안에 우수한 성적으로 완치! 역량 입증.' :
+                   gl === 'B' ? '시간 내 치료 성공! 좀 더 노력하면 A-CLASS도 엄두!' :
+                   '해냈다! K-군 완치 성공! 다음엔 힌트 없이 도전해보자!'
+            };
+          } else {
+            G.finalGrade = calcGrade(G.hintCount || 0, G.clearElapsedSec);
+          }
         } else {
           // 서버에 등록된 시작 시각(startedAt) 우선 복원 (벽시계 기준 타이머)
           if (serverRecord.startedAt && Number(serverRecord.startedAt) > 0) {
@@ -2394,6 +2442,8 @@
         G.sec = 35 * 60;
         G.finalCompleted = false;
         G.clearTimeStr = null;
+        G.clearElapsedSec = null;
+        G.finalGrade = null;
         isResume = false;
       }
 
@@ -2453,9 +2503,13 @@
       if (!G.finalCompleted) {
         const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
         G.sec = Math.max(0, 35 * 60 - elapsedSec);
+        setTimeout(() => { initECG(); startTimer(); }, 300);
+      } else {
+        G.sec = 0;
+        G.running = false;
+        setTimeout(() => { initECG(); }, 300);
       }
 
-      setTimeout(() => { initECG(); startTimer(); }, 300);
       updVitals();
       updTimer();
       saveLS();
@@ -2666,11 +2720,16 @@
       if (ANS.f(val)) {
         inp.disabled = true;
         G.finalCompleted = true;
+        // ★ 최종 코드 입력 순간 타이머 즉시 정지 및 확정 소요시간/등급 영구 동결
         const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+        G.clearElapsedSec = elapsedSec;
+        G.finalGrade = calcGrade(G.hintCount || 0, elapsedSec);
         const fm = String(Math.floor(elapsedSec / 60)).padStart(2, '0');
         const fs = String(elapsedSec % 60).padStart(2, '0');
         G.clearTimeStr = "'" + fm + ':' + fs;
-        G.sec = Math.max(0, 35 * 60 - elapsedSec);
+        G.sec = 0;
+        if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
+        G.running = false;
         saveLS();
         syncToGoogleSheet();
         closeModal('modal-final'); snd('fanfare'); startFW(); setTimeout(showCert, 2000);
@@ -2763,25 +2822,32 @@
     }
 
     function showCert() {
-      const elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+      // ★ 완치 소요 시간: 확정된 G.clearElapsedSec 또는 G.clearTimeStr를 우선 사용하여 재접속해도 절대 변하지 않음!
+      let elapsedSec = G.clearElapsedSec;
+      if (!elapsedSec && G.clearTimeStr) {
+        elapsedSec = parseSecFromTimeStr(G.clearTimeStr);
+      }
+      if (!elapsedSec) {
+        elapsedSec = G.startedAt ? Math.floor((Date.now() - G.startedAt) / 1000) : (35 * 60 - G.sec);
+      }
       const mm = String(Math.floor(elapsedSec / 60)).padStart(2, '0'), ss = String(elapsedSec % 60).padStart(2, '0');
-      const g = calcGrade(G.hintCount || 0, elapsedSec);
+      const g = G.finalGrade || calcGrade(G.hintCount || 0, elapsedSec);
       const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       set('cert-leader', G.player.leader || '─');
       set('cert-team', (Array.isArray(G.player.members) ? G.player.members.join(', ') : G.player.members) || '─');
       set('cert-class', G.player.cls + ' ' + G.player.grp + '모둠');
-      const clearClean = G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '').trim() : null;
-      const certTimeText = clearClean ? (clearClean.includes(':') ? (parseInt(clearClean.split(':')[0]) + '분 ' + parseInt(clearClean.split(':')[1]) + '초') : clearClean) : (mm + '분 ' + ss + '초');
+      const clearClean = G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '').trim() : (mm + ':' + ss);
+      const certTimeText = formatClearTime(clearClean, null);
       set('cert-time', certTimeText);
       set('cert-hint-count', G.hintCount || 0);
       const gradeBanner = document.getElementById('cert-grade-banner');
-      if (gradeBanner) gradeBanner.className = 'cert-grade-banner ' + g.css;
+      if (gradeBanner) gradeBanner.className = 'cert-grade-banner ' + (g.css || 'cert-grade-s');
       const gradeLabel = document.getElementById('cert-grade-label');
-      if (gradeLabel) { gradeLabel.textContent = g.label; gradeLabel.style.color = g.color; }
+      if (gradeLabel) { gradeLabel.textContent = g.label || g.grade || 'S-CLASS'; gradeLabel.style.color = g.color || '#f59e0b'; }
       const gradeMsg = document.getElementById('cert-grade-msg');
-      if (gradeMsg) gradeMsg.textContent = g.msg;
+      if (gradeMsg) gradeMsg.textContent = g.msg || '환자 K-군 완치 성공!';
       document.getElementById('modal-complete').classList.remove('hidden');
-      sendBC('COMPLETE', { time: mm + ':' + ss, grade: g.grade });
+      sendBC('COMPLETE', { time: mm + ':' + ss, grade: g.grade || 'S' });
     }
 
     // 💾 인증서 고화질 이미지(PNG) 저장 기능
@@ -2824,8 +2890,27 @@
       const m = cleanTime.match(/([0-9]+)\s*분\s*([0-9]+)\s*초/);
       if (m) {
         elapsedSec = parseInt(m[1]) * 60 + parseInt(m[2]);
+      } else {
+        const parsed = parseSecFromTimeStr(cleanTime);
+        if (parsed > 0) elapsedSec = parsed;
       }
-      const gObj = calcGrade(s.hintCount || 0, elapsedSec);
+
+      let gObj = null;
+      if (s.grade && s.grade !== '-') {
+        const gradeLetter = String(s.grade).charAt(0);
+        gObj = {
+          grade: gradeLetter,
+          label: s.grade,
+          color: gradeLetter === 'S' ? '#f59e0b' : gradeLetter === 'A' ? '#818cf8' : gradeLetter === 'B' ? '#22c55e' : '#06b6d4',
+          css: 'cert-grade-' + gradeLetter.toLowerCase(),
+          msg: gradeLetter === 'S' ? '타임 안에 힌트 없이 완벽 해독! 최고의 전문의!' :
+               gradeLetter === 'A' ? '타임 안에 우수한 성적으로 완치! 역량 입증.' :
+               gradeLetter === 'B' ? '시간 내 치료 성공! 좀 더 노력하면 A-CLASS도 엄두!' :
+               '해냈다! K-군 완치 성공! 다음엔 힌트 없이 도전해보자!'
+        };
+      } else {
+        gObj = calcGrade(s.hintCount || 0, elapsedSec);
+      }
 
       const set = (id, v) => { const e = document.getElementById(id); if (e) e.textContent = v; };
       set('cert-leader', s.leader || '─');
@@ -2876,11 +2961,9 @@
         }
       } catch (e) { }
 
-      const _s = [109, 105, 110, 97, 104];
-      const isByteMatch = cleanVal.length === _s.length && _s.every((c, i) => cleanVal.charCodeAt(i) === c);
-      const isHashMatch = (h === "ad5f52f58ed6ec6e7a641f2416f347674ac5933470079f2a18bc6269b1e80796");
+      const isHashMatch = (h === "e90f23b2bfa9a6dd6313364fa4e6777c98c0b533cb1b0fa3f6ce4048cfc526be");
 
-      if (isHashMatch || isByteMatch) {
+      if (isHashMatch) {
         closeModal('modal-tlogin');
         if (el) el.value = '';
         const errEl = document.getElementById('tpw-err');
@@ -2924,14 +3007,20 @@
             if (s.startedAt && Number(s.startedAt) > 0) {
               const elapsed = Math.floor((Date.now() - Number(s.startedAt)) / 1000);
               s.sec = Math.max(0, 35 * 60 - elapsed);
+            } else if (s.timeDisplay) {
+              const el = parseSecFromTimeStr(s.timeDisplay);
+              if (el > 0) {
+                s.startedAt = Date.now() - (el * 1000);
+                s.sec = Math.max(0, 35 * 60 - el);
+              }
             }
           }
         }
 
         renderTGroups();
 
-        // 3. 5초마다 구글 시트 자동 동기화 (최신 스탬프/힌트/팀원 수신)
-        if (tickCount % 5 === 0 && GAS_WEB_APP_URL) {
+        // 3. 4초마다 구글 시트 자동 동기화 (최신 스탬프/힌트/팀원 수신)
+        if (tickCount % 4 === 0 && GAS_WEB_APP_URL) {
           fetchFromGoogleSheet(false);
         }
       }, 1000);
@@ -3297,6 +3386,8 @@
           openedHints: G.openedHints || {},
           startedAt: G.startedAt || null,
           clearTimeStr: G.clearTimeStr || null,
+          clearElapsedSec: G.clearElapsedSec || null,
+          finalGrade: G.finalGrade || null,
           finalCompleted: G.finalCompleted || false,
           sec: G.sec,
           updatedAt: Date.now()
@@ -3321,7 +3412,11 @@
     document.addEventListener('click', () => { if (!actx) actx = new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); }, { passive: true });
 
     function tick() {
-      if (G.paused || G.finalCompleted) return;
+      if (G.paused || G.finalCompleted) {
+        if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
+        G.running = false;
+        return;
+      }
       // ★ 벽시계/서버 시작 시간 기준 타이머: 페이지를 나갔다 들어와도 시간 흐름 완벽 유지!
       if (G.startedAt) {
         const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
@@ -3332,7 +3427,7 @@
 
       if (G.sec <= 0) {
         G.sec = 0;
-        clearInterval(G.timerInt);
+        if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
         G.running = false;
         updTimer();
         showTO();
@@ -3365,14 +3460,30 @@
         }
       } catch (e) { }
 
-      // 🔄 탭 전환(백그라운드 복귀) 시 시간 오차 실시간 자동 보정
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && G.startedAt && !G.finalCompleted && G.running) {
+      // 🔄 모바일 화면 끄기/앱 전환/백그라운드 복귀 시 시간 오차 실시간 즉각 보정
+      function refreshTimerNow() {
+        if (G.startedAt && !G.finalCompleted) {
           const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
           G.sec = Math.max(0, 35 * 60 - elapsedSec);
-          updTimer();
+          if (G.sec <= 0) {
+            G.sec = 0;
+            if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
+            G.running = false;
+            updTimer();
+            showTO();
+          } else {
+            updTimer();
+            if (!G.running && !G.paused) {
+              startTimer();
+            }
+          }
         }
+      }
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') refreshTimerNow();
       });
+      window.addEventListener('pageshow', refreshTimerNow);
+      window.addEventListener('focus', refreshTimerNow);
 
       // 팀장 이름 입력 시 서버 기존 기록 자동 탐색 및 이어하기 안내
       let searchTimeout = null;
