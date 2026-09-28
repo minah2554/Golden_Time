@@ -846,8 +846,8 @@
       }
     }
   </style>
-  <script src="answers.js?v=2.2"></script>
-  <script src="hints.js?v=2.2"></script>
+  <script src="answers.js?v=20260928_fix"></script>
+  <script src="hints.js?v=20260928_fix"></script>
 </head>
 
 <body class="bg-[#060912]">
@@ -1859,10 +1859,10 @@
         return normAns(v) === normAns(target);
       },
       2: v => {
-        // [CHART 02 순환기내과] 정답: 4126 (직접 일치 또는 answers.js 매칭)
+        // [CHART 02 순환기내과] 정답: 4126 (4126 및 4129 모두 정답 인정)
         const clean = normAns(v);
-        const target = (window.GAME_ANSWERS && window.GAME_ANSWERS.chart2) ? window.GAME_ANSWERS.chart2 : "4126";
-        return clean === "4126" || clean === normAns(target);
+        const target = (window.GAME_ANSWERS && window.GAME_ANSWERS.chart2) ? normAns(window.GAME_ANSWERS.chart2) : "4126";
+        return clean === "4126" || clean === "4129" || clean === target;
       },
       3: v => {
         const target = (window.GAME_ANSWERS && window.GAME_ANSWERS.chart3) ? window.GAME_ANSWERS.chart3 : "8522";
