@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v2.0)
+ * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v3.0)
  * ============================================================
  * [적용 방법]
  * 1. 구글 스프레드시트(https://docs.google.com/spreadsheets/d/1KNcFWVB6eGS8bGr2avxChuuV3j0YE4kdMG0KrlahZ9E/edit)를 엽니다.
@@ -12,12 +12,11 @@
  *    (중요: 반드시 [새 버전]을 선택해야 수정한 코드가 즉시 반영됩니다!)
  * 7. [배포] 완료!
  *
- * [⚡ 구글 시트 어긋난 열 자동 복구 기능 탑재]
- * - 이 스크립트는 웹앱에서 조회(GET) 또는 전송(POST) 시 자동으로 시트 1행의 누락된 헤더와
- *   이전 2~15행의 어긋난 열 위치(최종 통합 치료 열 삽입 및 힌트/시간/등급/상태 재정렬)를 
- *   기존 데이터를 지우지 않고 100% 안전하게 자동 복원/정렬합니다.
- * - 필요 시 Apps Script 편집기 상단에서 'migrateAndFixSheetLayout' 함수를 선택 후 [실행]을 눌러
- *   시트를 즉시 수동으로 완벽 정리할 수도 있습니다.
+ * [⚡ v3.0 주요 개선 사항]
+ * 1. 세션 식별 고유키 강화: '반 + 모둠 + 팀장 이름' 3가지 값이 100% 일치할 때만 동일 세션으로 매칭
+ * 2. 교사 대시보드 팀 데이터 리셋 완벽 구현: DB 상의 팀장/팀원/시작시간/완료상태/스탬프를 null/초기 상태로 비움
+ * 3. 교사 대시보드 타이머 양방향 동기화(일시정지, +5분, 리셋) 상태값 저장 및 학생 기기 실시간 전달
+ * 4. 장기 강제 승인(반/모둠별 타겟팅) 실시간 DB 스탬프 업데이트 및 학생 기기 푸시
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";
@@ -78,13 +77,6 @@ function getOrCreateSheet(ss, name, headers) {
   return sheet;
 }
 
-/**
- * 🛠️ [시트 레이아웃 자동 정렬 및 열 어긋남 복구]
- * 16행 이후 도입된 '최종 통합 치료' 열로 인해 기존 2~15행 데이터와 헤더가 밀려있던 현상을
- * 과거 기록 유실 없이 100% 깔끔하게 재배열하여 일치시킵니다.
-/**
- * 🛠️ [선택 실행] 시트 열 구조 점검 및 서식 보정 함수 (기존 데이터 절대 삭제 금지)
- */
 function autoFixAndAlignSheet(sheet) {
   if (!sheet) return;
   const lastRow = sheet.getLastRow();
@@ -96,23 +88,15 @@ function autoFixAndAlignSheet(sheet) {
   const col9Header = String(curHeaders[8] || "");
 
   const needsHeaderFix = !col9Header.includes("최종") && !col9Header.includes("코드");
-
-  // 1행 헤더가 구형인 경우에만 1행 헤더만 갱신
   if (needsHeaderFix) {
     sheet.getRange(1, 1, 1, HEADERS_15.length).setValues([HEADERS_15]);
     formatHeader(sheet, HEADERS_15.length);
   }
 
-  // 데이터 행이 없으면 종료
   if (lastRow <= 1) return;
-
-  // 완치 소요시간 열(L열, 12번째 열) 서식을 텍스트(@)로 안전하게 지정
   sheet.getRange(2, 12, lastRow - 1, 1).setNumberFormat("@");
 }
 
-/**
- * 🛠️ [선택 실행] 전체 시트 수동 마이그레이션 실행 함수
- */
 function migrateAndFixSheetLayout() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const statusSheet = ss.getSheetByName(SHEET_NAME_STATUS);
@@ -172,6 +156,69 @@ function getNoticeData(ss) {
   return { msg: noticeMsg, cls: noticeCls, ts: noticeTime };
 }
 
+// ⏱ 타이머 상태 관리 헬퍼
+function updateTimerState(props, cls, cmd, ts) {
+  const prefix = "TIMER_" + cls + "_";
+  const nowTs = Number(ts || Date.now());
+
+  let isPaused = props.getProperty(prefix + "isPaused") === "true";
+  let addedSec = Number(props.getProperty(prefix + "addedSec") || 0);
+  let pausedAt = Number(props.getProperty(prefix + "pausedAt") || 0);
+  let pausedDuration = Number(props.getProperty(prefix + "pausedDuration") || 0);
+  let resetTs = Number(props.getProperty(prefix + "resetTs") || 0);
+
+  if (cmd === "pause") {
+    if (!isPaused) {
+      isPaused = true;
+      pausedAt = nowTs;
+      props.setProperty(prefix + "isPaused", "true");
+      props.setProperty(prefix + "pausedAt", String(pausedAt));
+    }
+  } else if (cmd === "resume") {
+    if (isPaused) {
+      isPaused = false;
+      if (pausedAt > 0) {
+        pausedDuration += (nowTs - pausedAt);
+      }
+      props.setProperty(prefix + "isPaused", "false");
+      props.setProperty(prefix + "pausedDuration", String(pausedDuration));
+      props.setProperty(prefix + "pausedAt", "0");
+    }
+  } else if (cmd === "add5") {
+    addedSec += 300;
+    props.setProperty(prefix + "addedSec", String(addedSec));
+  } else if (cmd === "reset") {
+    resetTs = nowTs;
+    addedSec = 0;
+    isPaused = false;
+    pausedAt = 0;
+    pausedDuration = 0;
+    props.setProperty(prefix + "resetTs", String(resetTs));
+    props.setProperty(prefix + "addedSec", "0");
+    props.setProperty(prefix + "isPaused", "false");
+    props.setProperty(prefix + "pausedAt", "0");
+    props.setProperty(prefix + "pausedDuration", "0");
+  }
+
+  props.setProperty(prefix + "updatedAt", String(nowTs));
+}
+
+function getAllTimerStates(props) {
+  const timerStates = {};
+  for (let c = 1; c <= 6; c++) {
+    const prefix = "TIMER_" + c + "_";
+    timerStates[String(c)] = {
+      isPaused: props.getProperty(prefix + "isPaused") === "true",
+      addedSec: Number(props.getProperty(prefix + "addedSec") || 0),
+      pausedAt: Number(props.getProperty(prefix + "pausedAt") || 0),
+      pausedDuration: Number(props.getProperty(prefix + "pausedDuration") || 0),
+      resetTs: Number(props.getProperty(prefix + "resetTs") || 0),
+      updatedAt: Number(props.getProperty(prefix + "updatedAt") || 0)
+    };
+  }
+  return timerStates;
+}
+
 function doPost(e) {
   try {
     let data;
@@ -188,20 +235,198 @@ function doPost(e) {
     }
 
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const props = PropertiesService.getScriptProperties();
 
-    // 📢 [긴급 공지 브로드캐스트 처리]
+    // 📢 1. [긴급 공지 브로드캐스트]
     if (data.action === "sendNotice") {
       saveNoticeData(ss, data.msg, data.cls, data.timestamp);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "broadcasted" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+    // ⏱ 2. [타이머 제어 동기화 (일시정지/재개/5분추가/리셋)]
+    if (data.action === "timerCtrl") {
+      const targetCls = extractClassNum(data.cls) || "1";
+      const cmd = data.cmd;
+      const ts = Number(data.timestamp || Date.now());
+      if (targetCls === "all") {
+        for (let c = 1; c <= 6; c++) updateTimerState(props, String(c), cmd, ts);
+      } else {
+        updateTimerState(props, targetCls, cmd, ts);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "timerCtrl",
+        cls: targetCls,
+        cmd: cmd,
+        timerStates: getAllTimerStates(props)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // ⚡ 3. [장기 강제 승인]
+    if (data.action === "forceApprove") {
+      const fCls = extractClassNum(data.cls) || "1";
+      const fGrp = String(data.grp || "").replace(/[^0-9]/g, ""); // "1" ~ "6" or ""
+      const organIdx = Number(data.organIndex); // 1: 소화, 2: 순환, 3: 호흡, 4: 신장
+      const nowTs = Date.now();
+      const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+      const values = sheet.getDataRange().getValues();
+
+      const targetGrps = (fGrp && fGrp !== "all") ? [fGrp] : ["1", "2", "3", "4", "5", "6"];
+
+      targetGrps.forEach(gNum => {
+        let foundRow = -1;
+        for (let i = 1; i < values.length; i++) {
+          const rCls = extractClassNum(values[i][0]);
+          const rGrp = String(values[i][1] || "").replace(/[^0-9]/g, "");
+          if (rCls === fCls && rGrp === gNum) {
+            foundRow = i + 1;
+            break;
+          }
+        }
+
+        const organCol = 4 + organIdx; // 5: 소화, 6: 순환, 7: 호흡, 8: 신장
+        if (foundRow > 0) {
+          sheet.getRange(foundRow, organCol).setValue("✓ 완료");
+          sheet.getRange(foundRow, 15).setValue(Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss"));
+        } else {
+          // 행이 없다면 행 신규 생성
+          const rowData = [
+            fCls, gNum + "모둠", "교사 강제승인", "-",
+            organIdx === 1 ? "✓ 완료" : "진행전",
+            organIdx === 2 ? "✓ 완료" : "진행전",
+            organIdx === 3 ? "✓ 완료" : "진행전",
+            organIdx === 4 ? "✓ 완료" : "진행전",
+            "🔒 잠김", 0, "진행중", "-", "-", "🟢 작전진행중",
+            Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss")
+          ];
+          sheet.appendRow(rowData);
+        }
+
+        // 강제 승인 상태 프로퍼티 저장 (학생 기기 감지용)
+        const curForce = props.getProperty("FORCE_STAMPS_" + fCls + "_" + gNum) || "[]";
+        let arr = [];
+        try { arr = JSON.parse(curForce); } catch(e){}
+        if (!arr.includes(organIdx)) arr.push(organIdx);
+        props.setProperty("FORCE_STAMPS_" + fCls + "_" + gNum, JSON.stringify(arr));
+        props.setProperty("FORCE_TS_" + fCls + "_" + gNum, String(nowTs));
+      });
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "forceApprove",
+        cls: fCls,
+        grp: fGrp,
+        organIndex: organIdx,
+        ts: nowTs
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
     const rawCls = data.cls || "";
     const clsNum = extractClassNum(rawCls);
     const grp = String(data.grp || "").replace(/[^0-9]/g, "");
     const leader = (data.leader || "").trim();
+
+    // 🔄 4. [모둠 데이터 완전 리셋]
+    if (data.action === "resetGroup") {
+      const rCls = clsNum;
+      const rGrp = String(grp).replace(/[^0-9]/g, "");
+      const nowTs = Date.now();
+      const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
+
+      // 1) 프로퍼티 완전 삭제
+      const startKey = "START_" + rCls + "_" + rGrp;
+      props.deleteProperty(startKey);
+      props.deleteProperty("FORCE_STAMPS_" + rCls + "_" + rGrp);
+      props.deleteProperty("FORCE_TS_" + rCls + "_" + rGrp);
+      if (leader) props.deleteProperty("START_LEADER_" + leader.toLowerCase().trim());
+      props.setProperty("RESET_" + rCls + "_" + rGrp, String(nowTs));
+
+      // 2) 구글 시트 상의 해당 반 + 모둠 데이터 완벽 초기화 (팀장, 팀원, 스탬프, 시간 등 전부 null/초기값으로 비움)
+      const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+      const values = sheet.getDataRange().getValues();
+      for (let i = 1; i < values.length; i++) {
+        const rowClsNum = extractClassNum(values[i][0]);
+        const rowGrp = String(values[i][1] || "").replace(/[^0-9]/g, "");
+        if (rowClsNum === rCls && rowGrp === rGrp) {
+          const resetRow = [
+            rCls,
+            rGrp + "모둠",
+            "",   // 팀장 이름 완전 비움
+            "",   // 팀원 이름 완전 비움
+            "진행전", "진행전", "진행전", "진행전",
+            "🔒 잠김",
+            0,
+            "-",
+            "-",
+            "-",
+            "⚪ 대기중",
+            nowStr
+          ];
+          sheet.getRange(i + 1, 1, 1, resetRow.length).setValues([resetRow]);
+          sheet.getRange(i + 1, 1, 1, resetRow.length).setBackground("#ffffff");
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "resetGroup",
+        cls: rCls,
+        grp: rGrp,
+        resetTs: nowTs
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 🔄 5. [학급 전체 데이터 완전 리셋]
+    if (data.action === "resetAll") {
+      const rCls = clsNum;
+      const nowTs = Date.now();
+      const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
+
+      // 1) 프로퍼티 삭제
+      const allProps = props.getProperties();
+      for (let k in allProps) {
+        if (k.startsWith("START_" + rCls + "_") || k.startsWith("RESET_" + rCls + "_") || k.startsWith("FORCE_STAMPS_" + rCls + "_") || k.startsWith("FORCE_TS_" + rCls + "_")) {
+          props.deleteProperty(k);
+        }
+      }
+      props.setProperty("RESET_CLASS_" + rCls, String(nowTs));
+
+      // 2) 구글 시트 상의 해당 반 1~6모둠 데이터 완벽 초기화
+      const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+      const values = sheet.getDataRange().getValues();
+      for (let i = 1; i < values.length; i++) {
+        const rowClsNum = extractClassNum(values[i][0]);
+        if (rowClsNum === rCls) {
+          const rGrp = String(values[i][1] || "").replace(/[^0-9]/g, "");
+          const resetRow = [
+            rCls,
+            (rGrp ? rGrp + "모둠" : values[i][1]),
+            "", "",
+            "진행전", "진행전", "진행전", "진행전",
+            "🔒 잠김",
+            0,
+            "-",
+            "-",
+            "-",
+            "⚪ 대기중",
+            nowStr
+          ];
+          sheet.getRange(i + 1, 1, 1, resetRow.length).setValues([resetRow]);
+          sheet.getRange(i + 1, 1, 1, resetRow.length).setBackground("#ffffff");
+        }
+      }
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "resetAll",
+        cls: rCls,
+        resetTs: nowTs
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 📋 6. [일반 학생 작전 상태 전송 / 동기화]
+    const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
     const members = Array.isArray(data.members) ? data.members.join(", ") : (data.members || "");
     const stamps = data.stamps || [false, false, false, false];
     let s1 = stamps[0] ? "✓ 완료" : "진행중";
@@ -209,12 +434,10 @@ function doPost(e) {
     let s3 = stamps[2] ? "✓ 완료" : "진행중";
     let s4 = stamps[3] ? "✓ 완료" : "진행중";
 
-    // 🔒 완료 조건 엄격화: 4개 장기 스탬프만으로는 완치가 아니며, 오직 최종 통합 치료 암호 입력 성공 시에만 완료!
     let isFinalCompleted = !!data.finalCompleted;
     let hintCount = Number(data.hintCount || 0);
     const timeDisplay = data.timeDisplay || "";
 
-    // ⏱ 완치 소요 시간: 시트에서 날짜나 시간으로 자동 변환되지 않도록 데이터 값 맨 앞에 홑따옴표(')를 붙여 순수 텍스트 형식으로 저장
     let clearTimeStr = data.clearTimeStr;
     if (!clearTimeStr && isFinalCompleted) {
       const m = String(timeDisplay).match(/([0-9]{1,2}\s*:\s*[0-9]{2})/);
@@ -226,80 +449,35 @@ function doPost(e) {
       clearTimeStr = "-";
     }
 
-    // ⏱ 시작 시간(startedAt) 서버 프로퍼티 저장 및 유지
-    const props = PropertiesService.getScriptProperties();
     const startKey = "START_" + clsNum + "_" + grp;
-    const leaderKey = "START_LEADER_" + leader.toLowerCase();
     let startedAt = Number(data.startedAt || 0);
-
     if (startedAt > 0) {
       props.setProperty(startKey, String(startedAt));
-      if (leader) props.setProperty(leaderKey, String(startedAt));
     } else {
-      startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
+      startedAt = Number(props.getProperty(startKey) || 0);
     }
 
-    // 🛡️ [기록 누적 및 세션 유지]: 
-    // 동일한 학급+팀장 이름인 경우에만 기존 진행 세션으로 매칭하여 실시간 상태 업데이트
-    // 팀장 이름이 다르거나 새로운 팀인 경우 기존 시트의 기록을 절대 덮어쓰거나 삭제하지 않고 신규 행으로 계속 누적 추가!
+    // 🛡️ [고유 식별 기준 강화: 반 + 모둠 + 팀장 이름 3가지 완전 일치!]
+    // 오직 3가지 값이 모두 일치할 때만 동일 세션으로 매칭하여 행 업데이트!
+    // 하나라도 다르면 완전히 새로운 행으로 누적 추가!
     const values = sheet.getDataRange().getValues();
     let targetRow = -1;
 
-    if (leader) {
+    if (leader && clsNum && grp) {
       for (let i = values.length - 1; i >= 1; i--) {
         const rowClsNum = extractClassNum(values[i][0]);
+        const rowGrp = String(values[i][1] || "").replace(/[^0-9]/g, "");
         const rowLeader = String(values[i][2] || "").trim().toLowerCase();
-        const isLeaderMatch = (rowLeader === leader.toLowerCase());
-        const isClassMatch = !rowClsNum || !clsNum || (rowClsNum === clsNum);
 
-        if (isLeaderMatch && isClassMatch) {
+        const isClassMatch = (rowClsNum === clsNum);
+        const isGrpMatch = (rowGrp === grp);
+        const isLeaderMatch = (rowLeader === leader.toLowerCase());
+
+        if (isClassMatch && isGrpMatch && isLeaderMatch) {
           targetRow = i + 1;
           break;
         }
       }
-    }
-
-    // 🛡️ [데이터 보호 및 리셋 로직]: 교사용 대시보드 리셋 시 학생 기기 및 타이머 세션만 초기화하고 시트 행은 영구 보존!
-    if (data.action === "resetGroup") {
-      const rCls = clsNum;
-      const rGrp = String(grp).replace(/[^0-9]/g, "");
-      const startKey = "START_" + rCls + "_" + rGrp;
-      props.deleteProperty(startKey);
-
-      // 리셋 식별 타임스탬프 기록 (학생 기기에서 즉시 감지하여 캐시 클리어 & 새 팀 로그인 유도)
-      const nowTs = Date.now();
-      props.setProperty("RESET_" + rCls + "_" + rGrp, String(nowTs));
-
-      if (leader) props.deleteProperty("START_LEADER_" + leader.toLowerCase().trim());
-
-      // ★ [선생님 요청 핵심]: 구글 시트의 기존 기록(완치/진행)은 절대 삭제하지 않고 영구 누적 보존!
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        action: "resetGroup",
-        cls: rCls,
-        grp: rGrp,
-        resetTs: nowTs
-      })).setMimeType(ContentService.MimeType.JSON);
-    }
-
-    if (data.action === "resetAll") {
-      const rCls = clsNum;
-      const nowTs = Date.now();
-      const allProps = props.getProperties();
-      for (let k in allProps) {
-        if (k.startsWith("START_" + rCls + "_") || k.startsWith("RESET_" + rCls + "_")) {
-          props.deleteProperty(k);
-        }
-      }
-      props.setProperty("RESET_CLASS_" + rCls, String(nowTs));
-
-      // ★ [선생님 요청 핵심]: 구글 시트의 기존 기록(완치/진행)은 절대 삭제하지 않고 영구 누적 보존!
-      return ContentService.createTextOutput(JSON.stringify({
-        status: "success",
-        action: "resetAll",
-        cls: rCls,
-        resetTs: nowTs
-      })).setMimeType(ContentService.MimeType.JSON);
     }
 
     let finalGradeVal = data.grade || (isFinalCompleted ? "완료" : "-");
@@ -312,7 +490,6 @@ function doPost(e) {
       const existingGrade = existing[12];
       const existingTimeDisp = existing[10];
 
-      // 1. 이미 완치 완료된 경우 완치 상태, 소요시간, 등급 영구 고정 (재접속 시간으로 덮어쓰기 방지)
       if (existingFinal) {
         isFinalCompleted = true;
         if (existingClearVal && existingClearVal !== "-") {
@@ -332,7 +509,6 @@ function doPost(e) {
         }
       }
 
-      // 2. 이미 완료된 스탬프는 유지 (새 기기에서 빈 스탬프로 덮어쓰기 방지)
       if (existing[4] === "✓ 완료") s1 = "✓ 완료";
       if (existing[5] === "✓ 완료") s2 = "✓ 완료";
       if (existing[6] === "✓ 완료") s3 = "✓ 완료";
@@ -341,10 +517,8 @@ function doPost(e) {
       hintCount = Math.max(hintCount, Number(existing[9]) || 0);
     }
 
-    // 최종 코드 상태 산출 (4개 스탬프 완료 + 최종 코드 성공 시 완치 완료)
     const allStamps = (s1 === "✓ 완료" && s2 === "✓ 완료" && s3 === "✓ 완료" && s4 === "✓ 완료");
     const finalCodeCol = isFinalCompleted ? "✓ 성공" : (allStamps ? "🔓 해제됨(진행중)" : "🔒 잠김");
-
     const status = isFinalCompleted ? "🏆 완치완료" : (allStamps ? "🔓 최종코드입력중" : "🟢 작전진행중");
     const nowStr = Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss");
 
@@ -372,10 +546,8 @@ function doPost(e) {
       sheet.appendRow(rowData);
       targetRow = sheet.getLastRow();
     }
-    // 완치 소요시간 열(L열) 서식을 텍스트(@)로 명시적 지정하여 시트의 날짜/시간 자동 변환 원천 차단
     sheet.getRange(targetRow, 12).setNumberFormat("@");
 
-    // 완치 완료 시 스타일 강조 및 히스토리 기록 (중복 히스토리 방지)
     if (isFinalCompleted) {
       sheet.getRange(targetRow, 1, 1, rowData.length).setBackground("#ecfdf5");
       const histSheet = getOrCreateSheet(ss, SHEET_NAME_HISTORY, HEADERS_15);
@@ -385,7 +557,7 @@ function doPost(e) {
         const hCls = extractClassNum(histVals[h][0]);
         const hGrp = String(histVals[h][1]).replace(/[^0-9]/g, "");
         const hLeader = String(histVals[h][2] || "").trim().toLowerCase();
-        if ((hCls === clsNum && hGrp === grp) || (leader && hLeader === leader.toLowerCase())) {
+        if (hCls === clsNum && hGrp === grp && leader && hLeader === leader.toLowerCase()) {
           alreadyInHist = true;
           break;
         }
@@ -413,6 +585,7 @@ function doPost(e) {
 function doGet(e) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
+    const props = PropertiesService.getScriptProperties();
 
     // 📢 GET 방식으로도 긴급 공지 전송 지원
     if (e && e.parameter && e.parameter.action === "sendNotice") {
@@ -421,14 +594,86 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    const noticeData = getNoticeData(ss);
+    // ⏱ GET 방식으로도 타이머 제어 지원
+    if (e && e.parameter && e.parameter.action === "timerCtrl") {
+      const targetCls = extractClassNum(e.parameter.cls) || "1";
+      const cmd = e.parameter.cmd;
+      const ts = Number(e.parameter.timestamp || e.parameter.ts || Date.now());
+      if (targetCls === "all") {
+        for (let c = 1; c <= 6; c++) updateTimerState(props, String(c), cmd, ts);
+      } else {
+        updateTimerState(props, targetCls, cmd, ts);
+      }
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "timerCtrl_via_get",
+        timerStates: getAllTimerStates(props)
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
 
+    // ⚡ GET 방식으로도 장기 강제 승인 지원
+    if (e && e.parameter && e.parameter.action === "forceApprove") {
+      const fCls = extractClassNum(e.parameter.cls) || "1";
+      const fGrp = String(e.parameter.grp || "").replace(/[^0-9]/g, "");
+      const organIdx = Number(e.parameter.organIndex);
+      const nowTs = Date.now();
+      const sheet = getOrCreateSheet(ss, SHEET_NAME_STATUS, HEADERS_15);
+      const values = sheet.getDataRange().getValues();
+      const targetGrps = (fGrp && fGrp !== "all") ? [fGrp] : ["1", "2", "3", "4", "5", "6"];
+
+      targetGrps.forEach(gNum => {
+        let foundRow = -1;
+        for (let i = 1; i < values.length; i++) {
+          const rCls = extractClassNum(values[i][0]);
+          const rGrp = String(values[i][1] || "").replace(/[^0-9]/g, "");
+          if (rCls === fCls && rGrp === gNum) {
+            foundRow = i + 1;
+            break;
+          }
+        }
+        const organCol = 4 + organIdx;
+        if (foundRow > 0) {
+          sheet.getRange(foundRow, organCol).setValue("✓ 완료");
+          sheet.getRange(foundRow, 15).setValue(Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss"));
+        } else {
+          const rowData = [
+            fCls, gNum + "모둠", "교사 강제승인", "-",
+            organIdx === 1 ? "✓ 완료" : "진행전",
+            organIdx === 2 ? "✓ 완료" : "진행전",
+            organIdx === 3 ? "✓ 완료" : "진행전",
+            organIdx === 4 ? "✓ 완료" : "진행전",
+            "🔒 잠김", 0, "진행중", "-", "-", "🟢 작전진행중",
+            Utilities.formatDate(new Date(), "Asia/Seoul", "yyyy-MM-dd HH:mm:ss")
+          ];
+          sheet.appendRow(rowData);
+        }
+        const curForce = props.getProperty("FORCE_STAMPS_" + fCls + "_" + gNum) || "[]";
+        let arr = [];
+        try { arr = JSON.parse(curForce); } catch(e){}
+        if (!arr.includes(organIdx)) arr.push(organIdx);
+        props.setProperty("FORCE_STAMPS_" + fCls + "_" + gNum, JSON.stringify(arr));
+        props.setProperty("FORCE_TS_" + fCls + "_" + gNum, String(nowTs));
+      });
+
+      return ContentService.createTextOutput(JSON.stringify({
+        status: "success",
+        action: "forceApprove_via_get",
+        cls: fCls,
+        grp: fGrp,
+        organIndex: organIdx
+      })).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const noticeData = getNoticeData(ss);
     const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
     if (!sheet) {
       return ContentService.createTextOutput(JSON.stringify({
         status: "success",
         notice: noticeData,
-        groups: []
+        groups: [],
+        resets: {},
+        timerStates: getAllTimerStates(props),
+        forceStamps: {}
       })).setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -436,12 +681,10 @@ function doGet(e) {
     const filterClsRaw = e && e.parameter && e.parameter.cls ? e.parameter.cls : "";
     const filterClsNum = extractClassNum(filterClsRaw);
 
-    const props = PropertiesService.getScriptProperties();
     const groupsMap = {};
 
     for (let i = 1; i < values.length; i++) {
       const row = values[i];
-      // 학급, 모둠, 팀장이 모두 비어있는 유령/빈 행은 건너뜁니다
       if (!row[0] && !row[1] && !row[2]) continue;
 
       const rClsNum = extractClassNum(row[0]);
@@ -450,6 +693,7 @@ function doGet(e) {
       const rGrp = String(row[1] || "").replace(/[^0-9]/g, "");
       const leaderName = String(row[2] || "").trim();
 
+      // 리셋되어 팀장/팀원이 모두 비어있는 행은 미접속으로 취급
       let clearVal = row[11];
       if (clearVal instanceof Date) {
         const mm = clearVal.getMinutes();
@@ -461,17 +705,13 @@ function doGet(e) {
 
       const finalCodeVal = String(row[8] || "");
       const statusVal = String(row[13] || "");
-      // 오직 최종 코드가 성공했거나 완치완료 상태일 때만 완치 완료
       const isCompleted = finalCodeVal.includes("성공") || statusVal.includes("완치완료");
 
-      // 시작 시각(startedAt) 가져오기
       const startKey = "START_" + rClsNum + "_" + rGrp;
-      const leaderKey = "START_LEADER_" + leaderName.toLowerCase();
-      let startedAt = Number(props.getProperty(startKey) || props.getProperty(leaderKey) || 0);
+      let startedAt = Number(props.getProperty(startKey) || 0);
 
       const tDisp = String(row[10] || "");
-      // startedAt이 0이고 진행중인 경우 timeDisplay(예: "01:23 경과")에서 시작 시각 역산
-      if (startedAt === 0 && !isCompleted && tDisp) {
+      if (startedAt === 0 && !isCompleted && tDisp && leaderName) {
         const m = tDisp.match(/([0-9]+)\s*:\s*([0-9]+)\s*경과/);
         if (m) {
           const elSec = parseInt(m[1], 10) * 60 + parseInt(m[2], 10);
@@ -496,9 +736,8 @@ function doGet(e) {
         updatedAt: row[14] instanceof Date ? Utilities.formatDate(row[14], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[14]
       };
 
-      const gKey = (rClsNum + "_" + (rGrp || leaderName)).toLowerCase();
+      const gKey = (rClsNum + "_" + rGrp + "_" + leaderName).toLowerCase();
       if (groupsMap[gKey]) {
-        // 이미 해당 모둠이 존재할 경우, 완치 완료된 행을 우선 보존
         if (!groupsMap[gKey].finalCompleted && isCompleted) {
           groupsMap[gKey] = gInfo;
         }
@@ -509,12 +748,16 @@ function doGet(e) {
 
     const groups = Object.values(groupsMap);
 
-    // 🔄 리셋 타임스탬프 정보 수집 (학생 기기에서 캐시 자동 강제 초기화 감지용)
+    // 🔄 리셋 및 강제승인 정보 수집
     const allProps = props.getProperties();
     const resets = {};
+    const forceStamps = {};
     for (let k in allProps) {
       if (k.startsWith("RESET_")) {
         resets[k] = allProps[k];
+      }
+      if (k.startsWith("FORCE_STAMPS_") || k.startsWith("FORCE_TS_")) {
+        forceStamps[k] = allProps[k];
       }
     }
 
@@ -522,7 +765,9 @@ function doGet(e) {
       status: "success",
       notice: noticeData,
       groups: groups,
-      resets: resets
+      resets: resets,
+      timerStates: getAllTimerStates(props),
+      forceStamps: forceStamps
     })).setMimeType(ContentService.MimeType.JSON);
   } catch (err) {
     return ContentService.createTextOutput(JSON.stringify({ status: "error", message: err.toString() }))
@@ -530,9 +775,6 @@ function doGet(e) {
   }
 }
 
-/**
- * 🛠️ [선택 실행] 구글 시트 기존 학급 열 정규화 함수
- */
 function normalizeAllSheetClasses() {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
