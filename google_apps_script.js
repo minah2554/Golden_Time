@@ -306,7 +306,7 @@ function doPost(e) {
         // 강제 승인 상태 프로퍼티 저장 (학생 기기 감지용)
         const curForce = props.getProperty("FORCE_STAMPS_" + fCls + "_" + gNum) || "[]";
         let arr = [];
-        try { arr = JSON.parse(curForce); } catch(e){}
+        try { arr = JSON.parse(curForce); } catch (e) { }
         if (!arr.includes(organIdx)) arr.push(organIdx);
         props.setProperty("FORCE_STAMPS_" + fCls + "_" + gNum, JSON.stringify(arr));
         props.setProperty("FORCE_TS_" + fCls + "_" + gNum, String(nowTs));
@@ -649,7 +649,7 @@ function doGet(e) {
         }
         const curForce = props.getProperty("FORCE_STAMPS_" + fCls + "_" + gNum) || "[]";
         let arr = [];
-        try { arr = JSON.parse(curForce); } catch(e){}
+        try { arr = JSON.parse(curForce); } catch (e) { }
         if (!arr.includes(organIdx)) arr.push(organIdx);
         props.setProperty("FORCE_STAMPS_" + fCls + "_" + gNum, JSON.stringify(arr));
         props.setProperty("FORCE_TS_" + fCls + "_" + gNum, String(nowTs));
