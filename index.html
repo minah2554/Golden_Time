@@ -1855,9 +1855,11 @@
     // ============================================================
     // ★ 교사용 인트로 영상 URL (여기서 교체)
     // YouTube: "https://www.youtube.com/embed/VIDEO_ID?autoplay=1"
-    // MP4: "./intro_video.mp4"
     const VIDEO_URL = "./intro.mp4";
     // ============================================================
+    // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
+    // ============================================================
+    const APP_VERSION = "v2.0";
 
     const G = {
       stamps: [false, false, false, false],
@@ -3872,6 +3874,11 @@
       // 교사 대시보드 강제 승인 반 드롭다운 변경 시 관제 학급도 동기화
       document.getElementById('force-approve-cls')?.addEventListener('change', function () {
         selectTeacherClass(this.value);
+      });
+
+      // 🏷️ 화면 하단 모든 푸터 버전 자동 동기화 (APP_VERSION 단일 소스 연동)
+      document.querySelectorAll('.f-ver').forEach(el => {
+        el.textContent = APP_VERSION;
       });
     });
 
