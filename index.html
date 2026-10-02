@@ -1961,7 +1961,7 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.3";
+    const APP_VERSION = "v2.4";
 
     const G = {
       stamps: [false, false, false, false],
@@ -2519,26 +2519,42 @@
       const cleanLeader = leader.toLowerCase().replace(/\s+/g, '');
       const sessionKey = 'esc_sess_' + clsNum + '_' + grpNum + '_' + cleanLeader;
 
-      // 1. 🛡️ 동일 기기 로컬 저장소에서 해당 반/모둠 기존 기록 확인
+      // 1. 🛡️ 동일 기기 로컬 저장소에서 해당 반/모둠 기존 기록 확인 (다중 키 완벽 탐색)
       let localRecord = null;
       try {
-        const rawExact = localStorage.getItem(sessionKey);
-        if (rawExact) {
-          localRecord = JSON.parse(rawExact);
-        } else {
-          const rawSpecific = localStorage.getItem('esc_c' + clsNum + '_g' + grpNum);
-          if (rawSpecific) {
-            localRecord = JSON.parse(rawSpecific);
+        const rawSpecific = localStorage.getItem('esc_c' + clsNum + '_g' + grpNum);
+        if (rawSpecific) {
+          localRecord = JSON.parse(rawSpecific);
+        }
+        if (!localRecord) {
+          const rawExact = localStorage.getItem(sessionKey);
+          if (rawExact) localRecord = JSON.parse(rawExact);
+        }
+        if (!localRecord) {
+          for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && k.startsWith('esc_sess_' + clsNum + '_' + grpNum + '_')) {
+              const val = localStorage.getItem(k);
+              if (val) {
+                localRecord = JSON.parse(val);
+                break;
+              }
+            }
           }
         }
       } catch (e) { }
 
-      // 2. 🌐 구글 시트 원격 서버에서 해당 반/모둠 기존 기록 확인
+      // 2. 🌐 구글 시트 원격 서버에서 해당 반/모둠 기존 기록 확인 (타임아웃 안전망 포함)
       let serverGroupRecord = null;
       if (GAS_WEB_APP_URL) {
         try {
           const sep = GAS_WEB_APP_URL.includes('?') ? '&' : '?';
-          const r = await fetch(GAS_WEB_APP_URL + sep + 'cls=' + encodeURIComponent(clsNum) + '&t=' + Date.now());
+          const controller = new AbortController();
+          const toId = setTimeout(() => controller.abort(), 2500);
+          const r = await fetch(GAS_WEB_APP_URL + sep + 'cls=' + encodeURIComponent(clsNum) + '&t=' + Date.now(), {
+            signal: controller.signal
+          });
+          clearTimeout(toId);
           const json = await r.json();
           if (json && Array.isArray(json.groups)) {
             serverGroupRecord = json.groups.find(g =>
@@ -2551,21 +2567,16 @@
         }
       }
 
-      // 최신 기존 기록 선정 (서버 우선, 서버가 없거나 비어있으면 로컬)
-      const existingRecord = (serverGroupRecord && serverGroupRecord.leader) ? serverGroupRecord : localRecord;
-      const existingLeader = (existingRecord && existingRecord.leader) ? String(existingRecord.leader).trim() : '';
+      // 최신 기존 기록 선정 (서버 또는 로컬 중 유효한 leader가 있는 쪽)
+      let existingRecord = null;
+      if (serverGroupRecord && serverGroupRecord.leader && String(serverGroupRecord.leader).trim() !== '' && String(serverGroupRecord.leader).trim() !== '미접속') {
+        existingRecord = serverGroupRecord;
+      } else if (localRecord && localRecord.leader && String(localRecord.leader).trim() !== '' && String(localRecord.leader).trim() !== '미접속') {
+        existingRecord = localRecord;
+      }
 
-      // 실제 진행 중인 유효한 세션인지 확인
-      const hasActiveSession = !!(
-        existingLeader &&
-        (
-          existingRecord.finalCompleted ||
-          (existingRecord.stamps && existingRecord.stamps.some(Boolean)) ||
-          (existingRecord.hintCount && Number(existingRecord.hintCount) > 0) ||
-          (existingRecord.startedAt && Number(existingRecord.startedAt) > 0) ||
-          (existingRecord.timeDisplay && (existingRecord.timeDisplay.includes('경과') || existingRecord.timeDisplay.includes('남은') || existingRecord.timeDisplay.includes('완료')))
-        )
-      );
+      const existingLeader = (existingRecord && existingRecord.leader) ? String(existingRecord.leader).trim() : '';
+      const hasActiveSession = !!(existingLeader && existingLeader !== '미접속');
 
       // ⚠️ 예외 처리 안내: 진행 중인 기록이 있는데, 입력한 팀장 이름이 기존 DB 기록과 일치하지 않는 경우
       if (hasActiveSession) {
@@ -2611,8 +2622,8 @@
       const rec = existingRecord;
 
       if (hasActiveSession && rec) {
-        // [반 + 모둠 + 팀장 이름 완전 일치] 기존 세션 복원!
-        G.stamps = rec.stamps || [false, false, false, false];
+        // [반 + 모둠 + 팀장 이름 완전 일치] 기존 세션 완벽 복원!
+        G.stamps = (rec.stamps && Array.isArray(rec.stamps)) ? rec.stamps : [false, false, false, false];
         G.hintCount = Number(rec.hintCount) || 0;
         G.openedHints = rec.openedHints || {};
         G.finalCompleted = !!rec.finalCompleted;
@@ -2644,14 +2655,15 @@
             G.finalGrade = calcGrade(G.hintCount || 0, G.clearElapsedSec);
           }
         } else {
-          // 타이머 복원: 벽시계/서버 시작 시간 기준 남은 시간 계산
+          // 타이머 복원: 벽시계/서버 시작 시간 기준 남은 시간 계산 (실시간 경과 시간 유지)
+          G.addedSec = Number(rec.addedSec) || 0;
           if (rec.startedAt && Number(rec.startedAt) > 0) {
             G.startedAt = Number(rec.startedAt);
             const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
-            G.sec = Math.max(0, 35 * 60 + (G.addedSec || 0) - elapsedSec);
+            G.sec = Math.max(0, 35 * 60 + G.addedSec - elapsedSec);
           } else if (rec.sec !== undefined && Number(rec.sec) > 0) {
             G.sec = Number(rec.sec);
-            G.startedAt = Date.now() - ((35 * 60 - G.sec) * 1000);
+            G.startedAt = Date.now() - ((35 * 60 + G.addedSec - G.sec) * 1000);
           } else {
             let elapsedSec = 0;
             if (rec.timeDisplay) {
@@ -2665,22 +2677,12 @@
               }
             }
             G.startedAt = Date.now() - (elapsedSec * 1000);
-            G.sec = Math.max(0, 35 * 60 + (G.addedSec || 0) - elapsedSec);
+            G.sec = Math.max(0, 35 * 60 + G.addedSec - elapsedSec);
           }
         }
         isResume = true;
       } else {
         // [신규 세션] 기존 진행 기록이 없는 새로운 게임 시작!
-        try {
-          localStorage.removeItem('esc_c' + clsNum + '_g' + grpNum);
-          localStorage.removeItem('esc_' + grpNum);
-          localStorage.removeItem('esc_state');
-          localStorage.removeItem(sessionKey);
-        } catch (e) { }
-
-        const toModal = document.getElementById('modal-timeout');
-        if (toModal) toModal.remove();
-
         G.stamps = [false, false, false, false];
         G.hintCount = 0;
         G.openedHints = {};
@@ -2753,7 +2755,7 @@
       // 현재 시각(벽시계/서버 타임스탬프) 기준 정확한 남은 시간 산출 (화면 전환/창 닫힘 완벽 유지)
       if (!G.finalCompleted) {
         const elapsedSec = Math.floor((Date.now() - G.startedAt) / 1000);
-        G.sec = Math.max(0, 35 * 60 - elapsedSec);
+        G.sec = Math.max(0, 35 * 60 + (G.addedSec || 0) - elapsedSec);
         setTimeout(() => { initECG(); startTimer(); }, 300);
       } else {
         G.sec = 0;
@@ -3955,44 +3957,44 @@
           return;
         }
 
-        // 1. 로컬 저장소 우선 확인
+        // 1. 로컬 저장소 다중 키 탐색
         let localRec = null;
         try {
-          const raw = localStorage.getItem('esc_c' + clsNum + '_g' + grpNum);
-          if (raw) localRec = JSON.parse(raw);
+          const rawSpecific = localStorage.getItem('esc_c' + clsNum + '_g' + grpNum);
+          if (rawSpecific) localRec = JSON.parse(rawSpecific);
+          if (!localRec) {
+            for (let i = 0; i < localStorage.length; i++) {
+              const k = localStorage.key(i);
+              if (k && k.startsWith('esc_sess_' + clsNum + '_' + grpNum + '_')) {
+                const val = localStorage.getItem(k);
+                if (val) { localRec = JSON.parse(val); break; }
+              }
+            }
+          }
         } catch (e) { }
 
         function evaluateMatch(rec) {
-          if (!rec || !rec.leader) {
-            hintEl.classList.add('hidden');
-            return;
-          }
-          const hasActive = !!(
-            rec.finalCompleted ||
-            (rec.stamps && rec.stamps.some(Boolean)) ||
-            (rec.hintCount && Number(rec.hintCount) > 0) ||
-            (rec.startedAt && Number(rec.startedAt) > 0) ||
-            (rec.timeDisplay && (rec.timeDisplay.includes('경과') || rec.timeDisplay.includes('남은') || rec.timeDisplay.includes('완료')))
-          );
-
-          if (!hasActive) {
+          if (!rec || !rec.leader || String(rec.leader).trim() === '' || String(rec.leader).trim() === '미접속') {
             hintEl.classList.add('hidden');
             return;
           }
 
+          const existingLeaderName = String(rec.leader).trim();
           const cleanInput = (leader || '').toLowerCase().replace(/\s+/g, '');
-          const cleanExisting = String(rec.leader).trim().toLowerCase().replace(/\s+/g, '');
+          const cleanExisting = existingLeaderName.toLowerCase().replace(/\s+/g, '');
 
           if (cleanInput && cleanInput !== cleanExisting) {
+            // 다른 이름을 입력했을 때 즉시 빨간색 경고 안내!
             hintEl.classList.remove('hidden');
             hintEl.innerHTML = '<span class="text-rose-400 font-bold">⚠️ 이미 해당 모둠에 진행 중인 기록이 있습니다. 초기 접속한 팀장 이름(수석 명의)으로 접속해 주세요.</span>';
           } else if (cleanInput && cleanInput === cleanExisting) {
-            const cnt = rec.stamps ? rec.stamps.filter(Boolean).length : 0;
+            // 같은 이름을 입력했을 때 즉시 초록색 성공 복원 안내!
+            const cnt = (rec.stamps && Array.isArray(rec.stamps)) ? rec.stamps.filter(Boolean).length : 0;
             hintEl.classList.remove('hidden');
             if (rec.finalCompleted) {
-              hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + rec.leader + ')</b> 완료 기록 발견! 🏆 <b>완치 완료</b> 상태입니다.</span>';
+              hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + existingLeaderName + ')</b> 완료 기록 발견! 🏆 <b>완치 완료</b> 상태입니다.</span>';
             } else {
-              hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + rec.leader + ')</b> 기존 작전 기록 발견! (치료 <b>' + cnt + '/4 완료</b>) 접속 시 자동 복원됩니다.</span>';
+              hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + existingLeaderName + ')</b> 기존 작전 기록 발견! (치료 <b>' + cnt + '/4 완료</b>) 접속 시 자동 복원됩니다.</span>';
             }
             if (rec.members) {
               const mInp = document.getElementById('login-members');
@@ -4001,9 +4003,9 @@
               }
             }
           } else {
-            // 팀장 이름을 아직 입력하지 않은 상태에서 기존 기록이 존재하는 경우 부드러운 가이드
+            // 팀장 이름을 아직 입력하지 않은 상태에서 기존 기록이 존재하는 경우 직관적인 가이드
             hintEl.classList.remove('hidden');
-            hintEl.innerHTML = '<span class="text-amber-300 font-medium">ℹ️ 해당 모둠에 진행 중인 작전이 있습니다. 초기 접속한 팀장 이름으로 입력하면 이어할 수 있습니다.</span>';
+            hintEl.innerHTML = '<span class="text-amber-300 font-medium">ℹ️ 2학년 ' + clsNum + '반 ' + grpNum + '모둠은 진행 중인 작전이 있습니다. 초기 접속한 팀장 이름(수석 명의)을 입력하면 이어서 진행됩니다.</span>';
           }
         }
 
@@ -4019,9 +4021,9 @@
                   normCls(g.cls || g.clsNum) === clsNum &&
                   String(g.grp).replace(/[^0-9]/g, '') === grpNum
                 );
-                if (found && found.leader) {
+                if (found && found.leader && String(found.leader).trim() !== '' && String(found.leader).trim() !== '미접속') {
                   evaluateMatch(found);
-                } else if (!localRec) {
+                } else if (!localRec || !localRec.leader) {
                   hintEl.classList.add('hidden');
                 }
               }
@@ -4032,10 +4034,16 @@
 
       document.getElementById('login-leader')?.addEventListener('input', () => {
         if (searchTimeout) clearTimeout(searchTimeout);
-        searchTimeout = setTimeout(checkExistingTeam, 400);
+        searchTimeout = setTimeout(checkExistingTeam, 150);
       });
+      document.getElementById('login-leader')?.addEventListener('focus', checkExistingTeam);
+      document.getElementById('login-leader')?.addEventListener('paste', () => setTimeout(checkExistingTeam, 50));
       document.getElementById('login-class')?.addEventListener('change', checkExistingTeam);
       document.querySelectorAll('input[name="group"]').forEach(r => r.addEventListener('change', checkExistingTeam));
+      document.querySelectorAll('.grp-lbl').forEach(l => l.addEventListener('click', () => setTimeout(checkExistingTeam, 50)));
+
+      // 초기 마운트 시 즉시 실행하여 기존 기록 자동 탐색
+      setTimeout(checkExistingTeam, 100);
 
       // 교사 대시보드 강제 승인 반 드롭다운 변경 시 관제 학급도 동기화
       document.getElementById('force-approve-cls')?.addEventListener('change', function () {
