@@ -1038,9 +1038,14 @@
               class="w-full bg-[#0f1628] border border-cyan-900/50 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-cyan-500 placeholder-slate-600 text-sm">
           </div>
         </div>
-        <button onclick="handleLogin()" class="btn-neon btn-red w-full mt-5 text-sm py-4">
-          🚨 긴급 코드블루 바이오 차트 접속
-        </button>
+        <div class="flex flex-col gap-2 mt-5">
+          <button onclick="handleLogin()" class="btn-neon btn-red w-full text-sm py-4">
+            🚨 긴급 코드블루 바이오 차트 접속
+          </button>
+          <button type="button" onclick="clearLoginForm()" class="w-full py-2.5 text-xs font-bold text-slate-400 hover:text-cyan-300 bg-slate-800/40 hover:bg-slate-800/80 rounded-lg border border-slate-700/60 transition-all flex items-center justify-center gap-1.5 font-sans">
+            🔄 입력 초기화 / 팀 재선택
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1070,7 +1075,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.0</span>
+            <span class="f-ver">v2.5</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1163,6 +1168,9 @@
         <button onclick="startGame()" class="btn-neon btn-red w-full py-4 text-sm font-bold">
           ✅ 숙지 완료! 응급 치료 시작 (타이머 START)
         </button>
+        <button type="button" onclick="clearLoginForm()" class="w-full mt-2.5 py-2.5 text-xs font-bold text-slate-400 hover:text-cyan-300 bg-slate-800/40 hover:bg-slate-800/80 rounded-lg border border-slate-700/60 transition-all flex items-center justify-center gap-1.5 font-sans">
+          ← 학급 / 모둠 다시 선택하기
+        </button>
       </div>
     </div>
 
@@ -1192,7 +1200,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.0</span>
+            <span class="f-ver">v2.5</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1409,7 +1417,7 @@
             <span class="f-sep text-slate-600">·</span>
             <span class="f-title-group inline-flex items-center gap-1.5">
               <span class="f-tag">Golden Time Medical Center</span>
-              <span class="f-ver">v2.0</span>
+              <span class="f-ver">v2.5</span>
             </span>
           </div>
           <div class="f-legal-line">
@@ -1768,9 +1776,9 @@
             class="btn-neon btn-amber flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1 font-sans">💾 인증서 보기/저장</button>
           <button onclick="window.print()"
             class="btn-neon btn-cyan flex-1 py-2.5 text-xs font-bold flex items-center justify-center gap-1 font-sans">🖨️ 인쇄</button>
-          <button onclick="closeModal('modal-complete')"
+          <button onclick="closeCert()"
             class="btn-neon flex-1 py-2.5 text-xs font-bold text-slate-300 hover:text-white bg-slate-800/80 border border-slate-600 flex items-center justify-center gap-1 font-sans">✕
-            닫기</button>
+            닫기 (초기 화면으로)</button>
         </div>
       </div>
     </div>
@@ -1961,7 +1969,39 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.4";
+    const APP_VERSION = "v2.5";
+
+    // 🧭 [화면 상태(View Routing) 단일 진실 공급원]: 백그라운드 리스너에 의한 화면 덮어쓰기/깜빡임 루프 원천 방지
+    let currentView = 'login'; // 'login' | 'intro' | 'dashboard'
+    function switchView(viewName) {
+      currentView = viewName;
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      const sc = document.getElementById('screen-' + viewName);
+      if (sc) sc.classList.add('active');
+      if (viewName !== 'intro') {
+        const videoEl = document.getElementById('intro-video-player');
+        if (videoEl) { try { videoEl.pause(); } catch (e) { } }
+      }
+    }
+
+    // 🛡️ [모둠 등록 레지스트리 캐시]: 반+모둠별 최초 등록 팀장 이름 보존 (타 명의 접속 원천 방어)
+    const activeTeamsRegistry = {};
+    try {
+      const savedTeams = localStorage.getItem('esc_known_teams');
+      if (savedTeams) Object.assign(activeTeamsRegistry, JSON.parse(savedTeams));
+    } catch (e) { }
+
+    function registerKnownTeam(clsNum, grpNum, leader, extra = {}) {
+      if (!clsNum || !grpNum || !leader || leader === '미접속') return;
+      const key = clsNum + '_' + grpNum;
+      activeTeamsRegistry[key] = Object.assign(activeTeamsRegistry[key] || {}, {
+        clsNum, grpNum, leader: String(leader).trim(),
+        updatedAt: Date.now()
+      }, extra);
+      try {
+        localStorage.setItem('esc_known_teams', JSON.stringify(activeTeamsRegistry));
+      } catch (e) { }
+    }
 
     const G = {
       stamps: [false, false, false, false],
@@ -1980,7 +2020,7 @@
       addedSec: 0,           // ⏱ 교사 부여 추가 시간(초)
       lastTimerResetTs: 0,   // ⏱ 교사 타이머 리셋 타임스탬프
       lastForceStampTs: 0,   // ⚡ 장기 강제 승인 처리 타임스탬프
-      loginTs: 0             // 👤 로그인 시각 타임스탬프
+      loginTs: Number(localStorage.getItem('esc_login_ts') || 0) // 👤 로그인 시각 타임스탬프 영구 동기화
     };
 
     // [answers.js] 연동 단일 고유 정답 검증 시스템 (중복/유사 정답 불가, 전각문자/공백 완벽 정규화)
@@ -2096,13 +2136,18 @@
       }
       if (msg.type === 'STUDENT_STATE' && msg.data && msg.data.grp) {
         grpStates[msg.data.grp] = Object.assign(grpStates[msg.data.grp] || {}, msg.data, { updatedAt: Date.now() });
+        const cNum = normCls(msg.data.cls);
+        if (cNum && msg.data.leader) {
+          registerKnownTeam(cNum, msg.data.grp, msg.data.leader, msg.data);
+        }
         renderTGroups();
       }
       if (msg.type === 'RESET_GROUP') {
         if (G.player && G.player.grp && msg.data && String(msg.data.grp) === String(G.player.grp)) {
           const pCls = normCls(G.player.cls);
           const mCls = normCls(msg.data.cls);
-          if (!mCls || mCls === pCls) {
+          const msgTs = Number(msg.data.ts || 0);
+          if ((!mCls || mCls === pCls) && (!msgTs || msgTs > (G.loginTs || 0))) {
             forceResetStudentState('⚠️ 교사 대시보드에서 ' + G.player.grp + '모둠 기록이 초기화되었습니다.\n처음부터 다시 시작합니다.');
           }
         }
@@ -2111,7 +2156,8 @@
         if (G.player) {
           const pCls = normCls(G.player.cls);
           const mCls = normCls(msg.data && msg.data.cls);
-          if (!mCls || mCls === pCls) {
+          const msgTs = Number(msg.data && msg.data.ts || 0);
+          if ((!mCls || mCls === pCls) && (!msgTs || msgTs > (G.loginTs || 0))) {
             forceResetStudentState('⚠️ 교사 대시보드에서 전체 모둠 기록이 초기화되었습니다.\n처음부터 다시 시작합니다.');
           }
         }
@@ -2163,7 +2209,10 @@
     function toggleSound() { G.soundOn = !G.soundOn; const b = document.getElementById('btn-sound'); if (b) b.textContent = G.soundOn ? '🔊' : '🔇'; }
     function showTO() { const m = document.createElement('div'); m.className = 'modal-backdrop'; m.id = 'modal-timeout'; m.innerHTML = '<div class="modal-content max-w-sm"><div class="p-6 text-center"><div class="text-6xl mb-4">⏰</div><div class="orb text-red-400 font-black text-2xl mb-2">TIME OVER</div><p class="text-slate-300 text-sm mb-4">제한 시간이 종료되었습니다.<br>선생님의 안내에 따라 주세요.</p><button onclick="resetGame()" class="btn-neon btn-cyan w-full py-3 text-sm">🔄 다시 도전</button></div></div>'; document.body.appendChild(m); }
 
-    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+    function showScreen(id) {
+      const viewName = String(id || '').replace(/^screen-/, '');
+      switchView(viewName);
+    }
 
     function selectGroup(n) {
       const gStr = String(n);
@@ -2433,7 +2482,7 @@
             const rClsTs = Number(resets['RESET_CLASS_' + studentClsNorm] || 0);
             const maxResetTs = Math.max(rGrpTs, rClsTs);
 
-            if (maxResetTs > 0 && maxResetTs > (G.loginTs || 0)) {
+            if (maxResetTs > 0 && G.loginTs > 0 && maxResetTs > (G.loginTs + 1000)) {
               forceResetStudentState('⚠️ 교사 대시보드에서 ' + studentGrp + '모둠 기록이 초기화되었습니다.\n처음부터 다시 시작합니다.');
               return;
             }
@@ -2567,12 +2616,19 @@
         }
       }
 
-      // 최신 기존 기록 선정 (서버 또는 로컬 중 유효한 leader가 있는 쪽)
+      // 최신 기존 기록 선정 (서버, 로컬, 캐시 레지스트리, 메모리 중 유효한 leader가 있는 쪽)
       let existingRecord = null;
+      const regRecord = activeTeamsRegistry[clsNum + '_' + grpNum];
+      const memRecord = grpStates[grpNum];
+
       if (serverGroupRecord && serverGroupRecord.leader && String(serverGroupRecord.leader).trim() !== '' && String(serverGroupRecord.leader).trim() !== '미접속') {
         existingRecord = serverGroupRecord;
       } else if (localRecord && localRecord.leader && String(localRecord.leader).trim() !== '' && String(localRecord.leader).trim() !== '미접속') {
         existingRecord = localRecord;
+      } else if (regRecord && regRecord.leader && String(regRecord.leader).trim() !== '' && String(regRecord.leader).trim() !== '미접속') {
+        existingRecord = regRecord;
+      } else if (memRecord && memRecord.leader && String(memRecord.leader).trim() !== '' && String(memRecord.leader).trim() !== '미접속') {
+        existingRecord = memRecord;
       }
 
       const existingLeader = (existingRecord && existingRecord.leader) ? String(existingRecord.leader).trim() : '';
@@ -2580,6 +2636,7 @@
 
       // ⚠️ 예외 처리 안내: 진행 중인 기록이 있는데, 입력한 팀장 이름이 기존 DB 기록과 일치하지 않는 경우
       if (hasActiveSession) {
+        registerKnownTeam(clsNum, grpNum, existingLeader, existingRecord);
         const cleanExistingLeader = existingLeader.toLowerCase().replace(/\s+/g, '');
         if (cleanLeader !== cleanExistingLeader) {
           const warnMsg = '이미 해당 모둠에 진행 중인 기록이 있습니다. 초기 접속한 팀장 이름(수석 명의)으로 접속해 주세요.';
@@ -2617,7 +2674,11 @@
         localStorage.setItem('esc_last_login', JSON.stringify({ cls: clsNum, grp: grpNum }));
       } catch (e) { }
 
-      G.loginTs = Date.now();
+      G.loginTs = Math.max(Date.now(), (existingRecord && existingRecord.updatedAt ? Number(existingRecord.updatedAt) : 0));
+      try {
+        localStorage.setItem('esc_login_ts', String(G.loginTs));
+      } catch (e) { }
+
       let isResume = false;
       const rec = existingRecord;
 
@@ -2626,7 +2687,10 @@
         G.stamps = (rec.stamps && Array.isArray(rec.stamps)) ? rec.stamps : [false, false, false, false];
         G.hintCount = Number(rec.hintCount) || 0;
         G.openedHints = rec.openedHints || {};
-        G.finalCompleted = !!rec.finalCompleted;
+
+        // ★ [Bug 4 원천 차단]: 장기 1, 2, 3, 4 스탬프 모두 획득(true)일 때만 finalCompleted 인정!
+        const allStampsDone = Array.isArray(G.stamps) && G.stamps.length === 4 && G.stamps.every(Boolean);
+        G.finalCompleted = !!(rec.finalCompleted && allStampsDone);
         G.clearTimeStr = rec.clearTimeStr || null;
 
         if (rec.members && (!G.player.members || G.player.members.length === 0)) {
@@ -2695,6 +2759,12 @@
         G.clearElapsedSec = null;
         G.finalGrade = null;
         isResume = false;
+        registerKnownTeam(clsNum, grpNum, leader, {
+          cls: G.player.cls,
+          grp: grpNum,
+          leader: leader,
+          members: members
+        });
       }
 
       renderStamps();
@@ -2711,6 +2781,7 @@
         const clearedCount = G.stamps.filter(Boolean).length;
         if (G.finalCompleted) {
           toast('🏆 ' + leader + ' 팀장님 모둠은 이미 완치 완료(' + (G.clearTimeStr ? String(G.clearTimeStr).replace(/^'/, '') : '') + ') 상태입니다!', 'ok');
+          switchView('dashboard');
           setTimeout(showCert, 400);
           return;
         } else {
@@ -2737,13 +2808,13 @@
           }
         }
       }
-      showScreen('screen-intro');
+      switchView('intro');
     }
 
     function startGame() {
       const ht = document.getElementById('header-team');
       if (ht) ht.textContent = G.player.cls + ' ' + G.player.grp + '모둠 · ' + G.player.leader;
-      showScreen('screen-dashboard');
+      switchView('dashboard');
       snd('alarm');
       renderStamps();
 
@@ -2968,6 +3039,14 @@
       else { shakeEl(inp); setMsg(n, '❌ 오답입니다. 다시 확인하세요!', 'err'); snd('err'); }
     }
     function submitFinal() {
+      // 1. 4대 장기 스탬프 선행 검증 (스탬프 미완료 시 최종 암호 제출 불가)
+      const allDone = Array.isArray(G.stamps) && G.stamps.length === 4 && G.stamps.every(Boolean);
+      if (!allDone) {
+        shakeEl(document.getElementById('ci-final'));
+        toast('4대 장기를 먼저 모두 치료해야 최종 통합 치료가 가능합니다!', 'err');
+        snd('err');
+        return;
+      }
       const inp = document.getElementById('ci-final'), msg = document.getElementById('cm-final'); if (!inp) return; const val = inp.value;
       if (!val) { shakeEl(inp); return; }
       if (ANS.f(val)) {
@@ -3034,15 +3113,27 @@
     function checkAllStamps() {
       const lk = document.getElementById('final-locked');
       const uk = document.getElementById('final-unlocked');
+      const allDone = Array.isArray(G.stamps) && G.stamps.length === 4 && G.stamps.every(Boolean);
+
+      // ★ [Bug 4 원천 차단]: 장기 1, 2, 3, 4 스탬프 모두 완료되지 않았다면 절대 완치 또는 잠금 해제 표시 불가
+      if (!allDone) {
+        G.finalCompleted = false;
+        if (lk) lk.classList.remove('hidden');
+        if (uk) {
+          uk.classList.add('hidden');
+          uk.innerHTML = '';
+        }
+        return;
+      }
+
+      // 4대 장기 스탬프 모두 완료된 상태:
       if (G.finalCompleted) {
         if (lk) lk.classList.add('hidden');
         if (uk) {
           uk.classList.remove('hidden');
           uk.innerHTML = '<button onclick="showCert()" class="btn-neon btn-amber w-full py-3 text-sm font-bold flex items-center justify-center gap-2 font-sans shadow-lg">🏆 환자 K-군 완치 완료! 📜 인증서 보기/저장</button>';
         }
-        return;
-      }
-      if (G.stamps.every(Boolean)) {
+      } else {
         if (lk) lk.classList.add('hidden');
         if (uk) {
           uk.classList.remove('hidden');
@@ -3075,6 +3166,13 @@
     }
 
     function showCert() {
+      // ★ [Bug 4 방어]: 4대 장기 스탬프 모두 완료 && finalCompleted 일 때만 인증서 모달 허용
+      const allDone = Array.isArray(G.stamps) && G.stamps.length === 4 && G.stamps.every(Boolean);
+      if (!allDone || !G.finalCompleted) {
+        toast('4대 장기 치료와 최종 통합 치료를 모두 완료해야 인증서를 열람할 수 있습니다.', 'err');
+        return;
+      }
+
       // ★ 완치 소요 시간: 확정된 G.clearElapsedSec 또는 G.clearTimeStr를 우선 사용하여 재접속해도 절대 변하지 않음!
       let elapsedSec = G.clearElapsedSec;
       if (!elapsedSec && G.clearTimeStr) {
@@ -3101,6 +3199,14 @@
       if (gradeMsg) gradeMsg.textContent = g.msg || '환자 K-군 완치 성공!';
       document.getElementById('modal-complete').classList.remove('hidden');
       sendBC('COMPLETE', { time: mm + ':' + ss, grade: g.grade || 'S' });
+    }
+
+    // 🏆 [Bug 3 해결]: 인증서 닫기 시 세션/구독 완전 초기화 및 초기 로그인 화면 복귀
+    function closeCert() {
+      closeModal('modal-complete');
+      forceResetStudentState();
+      clearLoginForm();
+      toast('수고하셨습니다! 초기 로그인 화면으로 돌아왔습니다.', 'ok');
     }
 
     // 💾 인증서 고화질 이미지(PNG) 저장 기능
@@ -3739,10 +3845,49 @@
     function showBCModal(msg) { document.getElementById('bc-content').textContent = msg; document.getElementById('modal-broadcast').classList.remove('hidden'); }
     function closeBroadcast() { document.getElementById('modal-broadcast').classList.add('hidden'); }
 
+    // 🛡️ [로그인 폼 및 에러 상태 완벽 초기화 함수]
+    function clearLoginForm() {
+      // 1. 학급 및 모둠 선택 초기화
+      const clsEl = document.getElementById('login-class');
+      if (clsEl) clsEl.value = '';
+      document.querySelectorAll('input[name="group"]').forEach(r => { r.checked = false; });
+      document.querySelectorAll('.grp-lbl').forEach(l => {
+        l.classList.remove('border-cyan-500', 'bg-cyan-900/20', 'text-cyan-400');
+        l.classList.add('border-slate-700');
+      });
+
+      // 2. 텍스트 입력창 초기화
+      const leaderInp = document.getElementById('login-leader');
+      if (leaderInp) leaderInp.value = '';
+      const membersInp = document.getElementById('login-members');
+      if (membersInp) membersInp.value = '';
+
+      // 3. 안내 및 에러 문구 완전 초기화
+      const hintEl = document.getElementById('login-sync-hint');
+      if (hintEl) {
+        hintEl.innerHTML = '';
+        hintEl.classList.add('hidden');
+      }
+
+      // 4. 활성화된 토스트 팝업 숨김
+      const toastEl = document.getElementById('toast');
+      if (toastEl) toastEl.style.opacity = '0';
+      if (toastT) { clearTimeout(toastT); toastT = null; }
+
+      // 5. 이전 임시 접속 기록 제거
+      try {
+        localStorage.removeItem('esc_last_login');
+      } catch (e) { }
+
+      // 6. 화면을 깨끗한 로그인 화면으로 전환
+      switchView('login');
+    }
+
     // 🛡️ [학생 기기 캐시 및 타이머 완전 강제 초기화 함수]
     function forceResetStudentState(reason = '') {
       if (G.timerInt) { clearInterval(G.timerInt); G.timerInt = null; }
       if (window.bgSyncInterval) { clearInterval(window.bgSyncInterval); window.bgSyncInterval = null; }
+      if (remoteNoticeTimer) { clearInterval(remoteNoticeTimer); remoteNoticeTimer = null; }
       if (G.hbInt) { clearInterval(G.hbInt); G.hbInt = null; }
       if (G.ecgAnim) { cancelAnimationFrame(G.ecgAnim); G.ecgAnim = null; }
 
@@ -3772,6 +3917,7 @@
           }
         }
         localStorage.removeItem('esc_state');
+        localStorage.removeItem('esc_last_login');
       } catch (e) { }
 
       // 4. 게임 상태를 완전 초기 대기 상태로 리셋
@@ -3797,7 +3943,10 @@
       const membersInp = document.getElementById('login-members');
       if (membersInp) membersInp.value = '';
       const hintEl = document.getElementById('login-sync-hint');
-      if (hintEl) hintEl.classList.add('hidden');
+      if (hintEl) {
+        hintEl.innerHTML = '';
+        hintEl.classList.add('hidden');
+      }
 
       // 6. 4개 장기 미션 및 최종 미션 입력창/뱃지 초기화
       [1, 2, 3, 4].forEach(n => {
@@ -3809,7 +3958,7 @@
       SIDS.forEach(id => { const e = document.getElementById(id); if (e) e.classList.remove('active'); });
       const sc = document.getElementById('stamp-count'); if (sc) sc.textContent = '0';
       const fl = document.getElementById('final-locked'); if (fl) fl.classList.remove('hidden');
-      const fu = document.getElementById('final-unlocked'); if (fu) fu.classList.add('hidden');
+      const fu = document.getElementById('final-unlocked'); if (fu) { fu.classList.add('hidden'); fu.innerHTML = ''; }
       const cf = document.getElementById('ci-final'); if (cf) { cf.value = ''; cf.disabled = false; }
       const cmf = document.getElementById('cm-final'); if (cmf) cmf.classList.add('hidden');
       const ht = document.getElementById('header-team'); if (ht) ht.textContent = '──';
@@ -3817,12 +3966,18 @@
       // 7. 즉시 초기 로그인 화면으로 전환 (새 팀 로그인 전까지 타이머 카운트 절대 불가)
       updTimer();
       renderStamps();
-      showScreen('screen-login');
-      if (reason) toast(reason, 'info');
+      if (!reason) {
+        clearLoginForm();
+      } else {
+        switchView('login');
+        toast(reason, 'info');
+      }
     }
 
     function resetGame() {
       forceResetStudentState();
+      clearLoginForm();
+      toast('팀 재선택을 위해 초기 화면으로 돌아왔습니다.', 'info');
     }
 
     function saveLS() {
@@ -3832,6 +3987,7 @@
         const grpNum = String(G.player.grp || '').replace(/[^0-9]/g, '');
         const cleanLeader = (G.player.leader || '').trim().toLowerCase().replace(/\s+/g, '');
 
+        const allStampsDone = Array.isArray(G.stamps) && G.stamps.length === 4 && G.stamps.every(Boolean);
         const data = {
           cls: G.player.cls,
           grp: grpNum,
@@ -3844,7 +4000,7 @@
           clearTimeStr: G.clearTimeStr || null,
           clearElapsedSec: G.clearElapsedSec || null,
           finalGrade: G.finalGrade || null,
-          finalCompleted: G.finalCompleted || false,
+          finalCompleted: !!(G.finalCompleted && allStampsDone),
           sec: G.sec,
           addedSec: G.addedSec || 0,
           updatedAt: Date.now()
@@ -3979,6 +4135,7 @@
             return;
           }
 
+          registerKnownTeam(clsNum, grpNum, rec.leader, rec);
           const existingLeaderName = String(rec.leader).trim();
           const cleanInput = (leader || '').toLowerCase().replace(/\s+/g, '');
           const cleanExisting = existingLeaderName.toLowerCase().replace(/\s+/g, '');
@@ -3990,8 +4147,9 @@
           } else if (cleanInput && cleanInput === cleanExisting) {
             // 같은 이름을 입력했을 때 즉시 초록색 성공 복원 안내!
             const cnt = (rec.stamps && Array.isArray(rec.stamps)) ? rec.stamps.filter(Boolean).length : 0;
+            const allStampsDone = Array.isArray(rec.stamps) && rec.stamps.length === 4 && rec.stamps.every(Boolean);
             hintEl.classList.remove('hidden');
-            if (rec.finalCompleted) {
+            if (rec.finalCompleted && allStampsDone) {
               hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + existingLeaderName + ')</b> 완료 기록 발견! 🏆 <b>완치 완료</b> 상태입니다.</span>';
             } else {
               hintEl.innerHTML = '<span class="text-emerald-400 font-bold">✨ <b>2학년 ' + clsNum + '반 ' + grpNum + '모둠(' + existingLeaderName + ')</b> 기존 작전 기록 발견! (치료 <b>' + cnt + '/4 완료</b>) 접속 시 자동 복원됩니다.</span>';
