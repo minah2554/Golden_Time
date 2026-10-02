@@ -1789,52 +1789,55 @@
 
         <!-- 🏫 관제 학급 선택 바 -->
         <div
-          class="flex flex-wrap items-center justify-between gap-2 mb-4 bg-slate-900/80 p-3 rounded-xl border border-cyan-900/50">
-          <div class="flex items-center gap-2">
-            <span class="text-xs text-amber-400 font-bold flex items-center gap-1">🏫 관제 학급 선택:</span>
-            <div class="flex flex-wrap gap-1.5" id="t-class-selector">
-              <button onclick="selectTeacherClass(1)" id="t-btn-cls-1"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400">1반</button>
-              <button onclick="selectTeacherClass(2)" id="t-btn-cls-2"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">2반</button>
-              <button onclick="selectTeacherClass(3)" id="t-btn-cls-3"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">3반</button>
-              <button onclick="selectTeacherClass(4)" id="t-btn-cls-4"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">4반</button>
-              <button onclick="selectTeacherClass(5)" id="t-btn-cls-5"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">5반</button>
-              <button onclick="selectTeacherClass(6)" id="t-btn-cls-6"
-                class="t-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700">6반</button>
-            </div>
+          class="flex flex-col gap-2 mb-4 bg-slate-900/80 p-3.5 sm:p-4 rounded-xl border border-cyan-900/50">
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs text-amber-400 font-bold flex items-center gap-1.5">🏫 관제 학급 선택:</span>
+            <span class="text-[11px] text-slate-400">선택한 반의 1~6모둠 관제</span>
           </div>
-          <div class="text-[11px] text-slate-400">선택한 반의 1~6모둠을 관제합니다</div>
+          <div class="grid grid-cols-3 sm:grid-cols-6 gap-2 w-full mt-1" id="t-class-selector">
+            <button onclick="selectTeacherClass(1)" id="t-btn-cls-1"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400 font-sans">1반</button>
+            <button onclick="selectTeacherClass(2)" id="t-btn-cls-2"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans">2반</button>
+            <button onclick="selectTeacherClass(3)" id="t-btn-cls-3"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans">3반</button>
+            <button onclick="selectTeacherClass(4)" id="t-btn-cls-4"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans">4반</button>
+            <button onclick="selectTeacherClass(5)" id="t-btn-cls-5"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans">5반</button>
+            <button onclick="selectTeacherClass(6)" id="t-btn-cls-6"
+              class="t-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans">6반</button>
+          </div>
         </div>
 
         <!-- 📊 구글 시트 실시간 연동 현황 바 -->
-        <div class="card-medical mb-4 bg-slate-900/60 border border-cyan-900/40">
-          <div class="flex flex-wrap items-center justify-between gap-2">
-            <div class="flex items-center gap-2">
-              <span class="text-xs font-bold text-slate-300">📊 구글 시트 연동:</span>
-              <span id="gas-status-badge"
-                class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400">⚪ URL 미설정 (로컬 관제)</span>
-              <span id="gas-last-sync" class="text-[11px] text-slate-500 font-mono"></span>
+        <div class="card-medical mb-4 bg-slate-900/60 border border-cyan-900/40 p-3.5 sm:p-4">
+          <div class="flex flex-col gap-2.5">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-bold text-slate-200 flex items-center gap-1">📊 구글 시트 연동:</span>
+                <span id="gas-status-badge"
+                  class="px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 whitespace-nowrap">⚪ URL 미설정 (로컬 관제)</span>
+              </div>
+              <span id="gas-last-sync" class="text-[11px] text-slate-400 font-mono whitespace-nowrap"></span>
             </div>
-            <div class="flex items-center gap-1.5">
+            <div class="grid grid-cols-2 gap-2 w-full pt-0.5">
               <button onclick="fetchFromGoogleSheet(true)"
-                class="btn-neon btn-cyan px-2.5 py-1 text-xs font-bold flex items-center gap-1">🔄 실시간 새로고침</button>
+                class="btn-neon btn-cyan w-full py-2 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">🔄 실시간 새로고침</button>
               <button onclick="openGasModal()"
-                class="px-2.5 py-1 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold">⚙️
-                연동 설정</button>
+                class="w-full py-2 rounded-lg bg-slate-800 border border-slate-700 text-slate-300 hover:text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all">⚙️ 연동 설정</button>
             </div>
           </div>
         </div>
 
-        <div class="card-medical mb-4">
-          <h3 class="text-amber-400 font-bold text-sm mb-3">⏱ 타이머 제어</h3>
-          <div class="flex flex-wrap gap-2">
-            <button onclick="tCtrl('pause')" class="btn-neon btn-amber px-4 py-2 text-xs">⏸ 일시정지/재개</button>
-            <button onclick="tCtrl('add5')" class="btn-neon btn-cyan px-4 py-2 text-xs">+5분 추가</button>
-            <button onclick="tCtrl('reset')" class="btn-neon btn-red px-4 py-2 text-xs">🔄 타이머 리셋</button>
+        <div class="card-medical mb-4 p-3.5 sm:p-4">
+          <h3 class="text-amber-400 font-bold text-sm mb-3 flex items-center gap-1.5">
+            <span>⏱</span><span>타이머 제어</span>
+          </h3>
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+            <button onclick="tCtrl('pause')" class="btn-neon btn-amber w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">⏸ 일시정지/재개</button>
+            <button onclick="tCtrl('add5')" class="btn-neon btn-cyan w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">+5분 추가</button>
+            <button onclick="tCtrl('reset')" class="btn-neon btn-red col-span-2 sm:col-span-1 w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">🔄 타이머 리셋</button>
           </div>
         </div>
         <div class="card-medical mb-4">
@@ -1923,7 +1926,7 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.1";
+    const APP_VERSION = "v2.2";
 
     const G = {
       stamps: [false, false, false, false],
@@ -2255,10 +2258,10 @@
       const badge = document.getElementById('gas-status-badge');
       if (!badge) return;
       if (GAS_WEB_APP_URL) {
-        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 animate-pulse font-sans';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-green-950 text-green-300 border border-green-700 animate-pulse font-sans whitespace-nowrap';
         badge.textContent = '🟢 구글 시트 연동 활성';
       } else {
-        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 font-sans';
+        badge.className = 'px-2 py-0.5 rounded text-[11px] font-bold bg-slate-800 text-slate-400 font-sans whitespace-nowrap';
         badge.textContent = '⚪ URL 미설정 (로컬 관제)';
       }
     }
@@ -3248,9 +3251,9 @@
         const btn = document.getElementById('t-btn-cls-' + c);
         if (btn) {
           if (c === currentTeacherClass) {
-            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400 font-sans';
+            btn.className = 't-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-cyan-600 text-white shadow-md border border-cyan-400 font-sans';
           } else {
-            btn.className = 't-cls-btn px-3 py-1.5 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans';
+            btn.className = 't-cls-btn w-full py-2 rounded-lg text-xs font-bold transition-all bg-slate-800 text-slate-300 hover:text-white border border-slate-700 font-sans';
           }
         }
       }
