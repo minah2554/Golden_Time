@@ -877,9 +877,40 @@
       overflow-wrap: break-word !important;
     }
 
-    /* ===== 교사 대시보드 모바일 반응형 1열 최적화 (< 768px) ===== */
+    /* ===== 교사 대시보드 PC 대화면 확장 & 반응형 다단 그리드 & 가로 스크롤 방지 ===== */
+    #modal-teacher {
+      overflow-x: hidden !important;
+    }
+
+    #modal-teacher .modal-content,
+    .teacher-dashboard-modal {
+      width: 94vw !important;
+      max-width: 1400px !important;
+      max-height: 94vh !important;
+      overflow-x: hidden !important;
+    }
+
+    #t-group-grid {
+      width: 100% !important;
+      overflow-x: hidden !important;
+    }
+
+    .teacher-card {
+      min-width: 0 !important;
+      width: 100% !important;
+      overflow: hidden;
+    }
+
+    /* 모바일 화면 (< 768px): 1열 100% 너비 */
     @media (max-width: 767px) {
+      #modal-teacher .modal-content,
+      .teacher-dashboard-modal {
+        width: 96vw !important;
+        max-width: 100% !important;
+      }
+
       #t-group-grid {
+        display: grid !important;
         grid-template-columns: 1fr !important;
         gap: 0.875rem !important;
       }
@@ -898,17 +929,21 @@
       }
     }
 
+    /* 태블릿 화면 (768px ~ 1023px): 2열 그리드로 자동 줄바꿈 */
     @media (min-width: 768px) and (max-width: 1023px) {
       #t-group-grid {
-        grid-template-columns: repeat(2, 1fr) !important;
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
         gap: 1rem !important;
       }
     }
 
+    /* PC 대화면 (min-width: 1024px 이상): 3열 그리드로 자동 줄바꿈 (1,2,3 / 4,5,6) */
     @media (min-width: 1024px) {
       #t-group-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 1rem !important;
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        gap: 1.25rem !important;
       }
     }
   </style>
@@ -1761,8 +1796,8 @@
   </div>
 
   <!-- ===== MODAL: 교사 대시보드 ===== -->
-  <div id="modal-teacher" class="modal-backdrop hidden">
-    <div class="modal-content" style="max-width:800px">
+  <div id="modal-teacher" class="modal-backdrop hidden overflow-x-hidden">
+    <div class="modal-content teacher-dashboard-modal w-[94vw] max-w-7xl max-h-[92vh] overflow-x-hidden">
       <div class="p-5">
         <div class="flex flex-wrap items-center justify-between gap-3 mb-5 border-b border-cyan-900/40 pb-4">
           <div class="flex items-center gap-3">
@@ -1840,9 +1875,9 @@
             <button onclick="tCtrl('reset')" class="btn-neon btn-red col-span-2 sm:col-span-1 w-full py-2.5 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm">🔄 타이머 리셋</button>
           </div>
         </div>
-        <div class="card-medical mb-4">
+        <div class="card-medical mb-4 overflow-x-hidden">
           <h3 class="text-cyan-400 font-bold text-sm mb-3">📊 모둠별 진행 현황</h3>
-          <div id="t-group-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5"></div>
+          <div id="t-group-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 w-full overflow-x-hidden"></div>
           <div class="mt-3 text-slate-500 text-xs">* BroadcastChannel('escape_room_bus')로 동일 PC 다른 탭 실시간 동기화</div>
         </div>
         <div class="card-medical mb-4">
@@ -1926,7 +1961,7 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.2";
+    const APP_VERSION = "v2.3";
 
     const G = {
       stamps: [false, false, false, false],
