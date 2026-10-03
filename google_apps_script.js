@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v3.0)
+ * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v3.1)
  * ============================================================
  * [적용 방법]
  * 1. 구글 스프레드시트(https://docs.google.com/spreadsheets/d/1KNcFWVB6eGS8bGr2avxChuuV3j0YE4kdMG0KrlahZ9E/edit)를 엽니다.
@@ -12,11 +12,10 @@
  *    (중요: 반드시 [새 버전]을 선택해야 수정한 코드가 즉시 반영됩니다!)
  * 7. [배포] 완료!
  *
- * [⚡ v3.0 주요 개선 사항]
- * 1. 세션 식별 고유키 강화: '반 + 모둠 + 팀장 이름' 3가지 값이 100% 일치할 때만 동일 세션으로 매칭
- * 2. 교사 대시보드 팀 데이터 리셋 완벽 구현: DB 상의 팀장/팀원/시작시간/완료상태/스탬프를 null/초기 상태로 비움
- * 3. 교사 대시보드 타이머 양방향 동기화(일시정지, +5분, 리셋) 상태값 저장 및 학생 기기 실시간 전달
- * 4. 장기 강제 승인(반/모둠별 타겟팅) 실시간 DB 스탬프 업데이트 및 학생 기기 푸시
+ * [⚡ v3.1 주요 개선 사항]
+ * 1. 크로스 디바이스 세션 완벽 동기화: '반+모둠'별 단일 활성 세션 확정 반환 및 숫자 타임스탬프(updatedAtTs) 제공
+ * 2. 완치 기록 히스토리 시트 영구 누적(Append) 보장: 재도전 및 모든 완료 기록 영구 보존
+ * 3. 교사 대시보드 팀 데이터 리셋 시 웹앱 상태만 초기화하고 시트 누적 기록 온전 보존
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";
@@ -557,7 +556,9 @@ function doPost(e) {
         const hCls = extractClassNum(histVals[h][0]);
         const hGrp = String(histVals[h][1]).replace(/[^0-9]/g, "");
         const hLeader = String(histVals[h][2] || "").trim().toLowerCase();
-        if (hCls === clsNum && hGrp === grp && leader && hLeader === leader.toLowerCase()) {
+        const hTime = String(histVals[h][14] || "").trim();
+        // 동일한 1분 내의 중복 전송만 방지하고, 모든 완료 플레이는 히스토리에 영구 누적(Append)
+        if (hCls === clsNum && hGrp === grp && leader && hLeader === leader.toLowerCase() && hTime.substring(0, 16) === nowStr.substring(0, 16)) {
           alreadyInHist = true;
           break;
         }
@@ -719,6 +720,13 @@ function doGet(e) {
         }
       }
 
+      let upTs = 0;
+      if (row[14] instanceof Date) {
+        upTs = row[14].getTime();
+      } else if (row[14]) {
+        try { upTs = new Date(row[14]).getTime() || 0; } catch (e) { }
+      }
+
       const gInfo = {
         cls: row[0],
         clsNum: rClsNum,
@@ -733,12 +741,26 @@ function doGet(e) {
         grade: row[12],
         finalCompleted: isCompleted,
         startedAt: startedAt,
-        updatedAt: row[14] instanceof Date ? Utilities.formatDate(row[14], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[14]
+        updatedAt: row[14] instanceof Date ? Utilities.formatDate(row[14], "Asia/Seoul", "yyyy-MM-dd HH:mm:ss") : row[14],
+        updatedAtTs: upTs
       };
 
-      const gKey = (rClsNum + "_" + rGrp + "_" + leaderName).toLowerCase();
+      // 🛡️ [모둠 단위 단일 진실 공급원]: '반 + 모둠'별 가장 최신의 활성 세션 기록으로 확정
+      const gKey = (rClsNum + "_" + rGrp).toLowerCase();
       if (groupsMap[gKey]) {
-        if (!groupsMap[gKey].finalCompleted && isCompleted) {
+        const prev = groupsMap[gKey];
+        const prevHasLeader = prev.leader && prev.leader !== "미접속";
+        const curHasLeader = leaderName && leaderName !== "미접속";
+
+        if (!prevHasLeader && curHasLeader) {
+          groupsMap[gKey] = gInfo;
+        } else if (prevHasLeader && curHasLeader) {
+          if (!prev.finalCompleted && isCompleted) {
+            groupsMap[gKey] = gInfo;
+          } else if (upTs >= (prev.updatedAtTs || 0)) {
+            groupsMap[gKey] = gInfo;
+          }
+        } else if (upTs >= (prev.updatedAtTs || 0)) {
           groupsMap[gKey] = gInfo;
         }
       } else {
