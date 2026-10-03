@@ -1075,7 +1075,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.8</span>
+            <span class="f-ver">v2.9</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1200,7 +1200,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.8</span>
+            <span class="f-ver">v2.9</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1410,7 +1410,7 @@
             <span class="f-sep text-slate-600">·</span>
             <span class="f-title-group inline-flex items-center gap-1.5">
               <span class="f-tag">Golden Time Medical Center</span>
-              <span class="f-ver">v2.8</span>
+              <span class="f-ver">v2.9</span>
             </span>
           </div>
           <div class="f-legal-line">
@@ -1931,10 +1931,23 @@
           </div>
         </div>
         <div class="card-medical">
-          <h3 class="text-red-400 font-bold text-sm mb-3">📢 긴급 공지 브로드캐스트</h3>
+          <div class="flex items-center justify-between mb-2">
+            <h3 class="text-red-400 font-bold text-sm">📢 긴급 공지 브로드캐스트</h3>
+            <span id="current-notice-status" class="text-[11px] text-slate-400 font-sans">현재 활성 공지 없음</span>
+          </div>
+          <div id="current-notice-preview" class="hidden mb-2.5 p-2.5 rounded-lg bg-red-950/40 border border-red-800/40 text-xs text-red-200 font-sans flex items-center justify-between gap-2">
+            <div class="truncate flex items-center gap-1.5">
+              <span class="text-red-400 font-bold shrink-0">발송 공지:</span>
+              <span id="current-notice-text" class="truncate font-medium text-slate-200"></span>
+            </div>
+            <span class="shrink-0 text-[10px] text-amber-300 bg-amber-950 border border-amber-800/60 px-1.5 py-0.5 rounded font-mono font-bold">LIVE</span>
+          </div>
           <textarea id="bc-msg" rows="2" placeholder="전체 모둠에 보낼 긴급 공지를 입력하세요..."
             class="w-full bg-[#0f1628] border border-red-900/40 rounded-lg px-3 py-2 text-white text-sm focus:outline-none focus:border-red-500 placeholder-slate-600 resize-none mb-3"></textarea>
-          <button onclick="sendBroadcast()" class="btn-neon btn-red w-full py-2.5 text-sm">📡 전체 모둠에 긴급 팝업 전송</button>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button onclick="sendBroadcast()" class="btn-neon btn-red w-full py-2.5 text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5">📡 긴급 공지 전송</button>
+            <button onclick="clearBroadcast()" class="w-full py-2.5 px-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-300 hover:text-white hover:bg-slate-700 text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 font-sans">🗑️ 공지 초기화 (삭제)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -1965,7 +1978,7 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.8";
+    const APP_VERSION = "v2.9";
 
     // 🧭 [화면 상태(View Routing) 단일 진실 공급원]: 백그라운드 리스너에 의한 화면 덮어쓰기/깜빡임 루프 원천 방지
     let currentView = 'login'; // 'login' | 'intro' | 'dashboard'
@@ -2094,6 +2107,13 @@
     function onBC(msg) {
       if (!msg) return;
       if (msg.type === 'BROADCAST_NOTICE') { showBCModal(msg.data.msg); snd('alarm'); }
+      if (msg.type === 'CLEAR_NOTICE') {
+        latestNoticeMsg = '';
+        try { localStorage.removeItem('esc_latest_notice_msg'); } catch (e) { }
+        const dot = document.getElementById('notice-unread-dot');
+        if (dot) dot.classList.add('hidden');
+        closeBroadcast();
+      }
       if (msg.type === 'TIMER_CTRL') {
         const studentClsNorm = normCls(G.player.cls);
         const targetClsNorm = normCls(msg.data && msg.data.cls);
@@ -2473,6 +2493,9 @@
               const now = new Date();
               syncEl.textContent = '동기화: ' + now.toLocaleTimeString();
             }
+            if (data.notice) {
+              updateNoticeStatusUI(data.notice.msg, data.notice.cls);
+            }
             if (isManual) toast(currentTeacherClass + '반 최신 현황 동기화 완료!', 'ok');
           }
         })
@@ -2495,13 +2518,25 @@
           const studentClsNorm = normCls(G.player.cls);
           const studentGrp = String(G.player.grp || '').replace(/[^0-9]/g, '');
 
-          // 1. 📢 원격 긴급 공지 수신
-          if (data.notice && data.notice.msg) {
+          // 1. 📢 원격 긴급 공지 수신 및 삭제/초기화 감지
+          if (data.notice) {
             const n = data.notice;
+            const hasMsg = !!(n.msg && String(n.msg).trim() !== '');
             const noticeClsNorm = normCls(n.cls);
             const isTarget = (!n.cls || n.cls === 'all' || noticeClsNorm === studentClsNorm);
 
-            if (isTarget && n.ts > lastNoticeSeenTime) {
+            if (!hasMsg || !isTarget) {
+              // 선생님이 공지를 초기화/삭제했거나 대상 학급이 아닌 경우 학생 화면 공지 즉시 해제
+              if (latestNoticeMsg) {
+                latestNoticeMsg = '';
+                try {
+                  localStorage.removeItem('esc_latest_notice_msg');
+                } catch (e) { }
+                const dot = document.getElementById('notice-unread-dot');
+                if (dot) dot.classList.add('hidden');
+                closeBroadcast();
+              }
+            } else if (isTarget && n.ts > lastNoticeSeenTime) {
               lastNoticeSeenTime = n.ts;
               latestNoticeMsg = n.msg;
               try {
@@ -3449,6 +3484,7 @@
     function openTDash() {
       document.getElementById('modal-teacher').classList.remove('hidden');
       updateGasStatusBadge();
+      updateNoticeStatusUI(latestNoticeMsg, currentTeacherClass);
 
       // 메인 화면에서 바로 들어왔을 때도 현재 선택 학급 데이터 즉시 동기화
       const studentClsNum = Number(String(G.player.cls || '').replace(/[^0-9]/g, ''));
@@ -3771,6 +3807,19 @@
       }
 
       sendBC('RESET_ALL', { cls: currentTeacherClass, ts: nowTs });
+      // 긴급 공지도 함께 초기화
+      latestNoticeMsg = '';
+      try { localStorage.removeItem('esc_latest_notice_msg'); } catch (e) { }
+      sendBC('CLEAR_NOTICE', { ts: nowTs });
+      updateNoticeStatusUI('');
+      if (GAS_WEB_APP_URL) {
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'clearNotice', timestamp: nowTs })
+        }).catch(() => { });
+      }
       renderTGroups();
       toast(currentTeacherClass + '반의 모든 모둠 데이터가 초기화되었습니다 (미접속 대기).', 'ok');
     }
@@ -3918,6 +3967,7 @@
       showBCModal(msg);
       snd('alarm');
       document.getElementById('bc-msg').value = '';
+      updateNoticeStatusUI(msg, currentTeacherClass);
       toast('긴급 공지 전송 완료!', 'ok');
 
       // 2. 구글 시트 원격 브로드캐스트 (전체 학생 기기 전송 - POST & GET 이중 전송)
@@ -3938,6 +3988,70 @@
         fetch(GAS_WEB_APP_URL + sep + 'action=sendNotice&msg=' + encodeURIComponent(msg) + '&cls=' + encodeURIComponent(currentTeacherClass) + '&ts=' + nowTs, {
           mode: 'no-cors'
         }).catch(e => console.warn('Broadcast send notice (GET):', e));
+      }
+    }
+
+    // 📢 긴급 공지 상태 UI 갱신 함수
+    function updateNoticeStatusUI(msg, cls) {
+      const statusEl = document.getElementById('current-notice-status');
+      const prevEl = document.getElementById('current-notice-preview');
+      const textEl = document.getElementById('current-notice-text');
+      if (!statusEl) return;
+      if (msg && String(msg).trim()) {
+        const clsLabel = (cls === 'all' || !cls) ? '전체 학급 대상' : (normCls(cls) + '반 대상');
+        statusEl.className = 'text-[11px] text-emerald-400 font-bold font-sans flex items-center gap-1';
+        statusEl.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>' + clsLabel + ' 활성';
+        if (prevEl && textEl) {
+          prevEl.classList.remove('hidden');
+          textEl.textContent = msg;
+        }
+      } else {
+        statusEl.className = 'text-[11px] text-slate-400 font-sans';
+        statusEl.textContent = '현재 활성 공지 없음';
+        if (prevEl && textEl) {
+          prevEl.classList.add('hidden');
+          textEl.textContent = '';
+        }
+      }
+    }
+
+    // 🗑️ 긴급 공지 초기화 / 삭제 (교사 대시보드 리셋 버튼)
+    function clearBroadcast() {
+      if (!confirm('현재 발송된 긴급 공지를 초기화(삭제)하시겠습니까?\n모든 학생 기기에서 공지가 즉시 제거됩니다.')) return;
+      const nowTs = Date.now();
+      latestNoticeMsg = '';
+      lastNoticeSeenTime = nowTs;
+      try {
+        localStorage.removeItem('esc_latest_notice_msg');
+        localStorage.setItem('esc_last_notice_ts', String(nowTs));
+      } catch (e) { }
+
+      // 1. 동일 브라우저 브로드캐스트 채널로 즉시 전파
+      sendBC('CLEAR_NOTICE', { ts: nowTs });
+      closeBroadcast();
+
+      // 2. 관리자 UI 즉시 초기화
+      updateNoticeStatusUI('');
+      const bcInp = document.getElementById('bc-msg');
+      if (bcInp) bcInp.value = '';
+      toast('긴급 공지가 초기화(삭제)되었습니다.', 'ok');
+
+      // 3. 구글 시트 원격 삭제 (POST & GET 이중 전송)
+      if (GAS_WEB_APP_URL) {
+        fetch(GAS_WEB_APP_URL, {
+          method: 'POST',
+          mode: 'no-cors',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'clearNotice',
+            timestamp: nowTs
+          })
+        }).catch(e => console.warn('Broadcast clear notice (POST):', e));
+
+        const sep = GAS_WEB_APP_URL.includes('?') ? '&' : '?';
+        fetch(GAS_WEB_APP_URL + sep + 'action=clearNotice&ts=' + nowTs, {
+          mode: 'no-cors'
+        }).catch(e => console.warn('Broadcast clear notice (GET):', e));
       }
     }
 

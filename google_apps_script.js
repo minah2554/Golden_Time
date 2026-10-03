@@ -1,6 +1,6 @@
 /**
  * ============================================================
- * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v3.1)
+ * 🏥 골든타임 메디컬 센터 방탈출 - 구글 스프레드시트 실시간 관제 API (v3.2)
  * ============================================================
  * [적용 방법]
  * 1. 구글 스프레드시트(https://docs.google.com/spreadsheets/d/1KNcFWVB6eGS8bGr2avxChuuV3j0YE4kdMG0KrlahZ9E/edit)를 엽니다.
@@ -12,10 +12,11 @@
  *    (중요: 반드시 [새 버전]을 선택해야 수정한 코드가 즉시 반영됩니다!)
  * 7. [배포] 완료!
  *
- * [⚡ v3.1 주요 개선 사항]
- * 1. 크로스 디바이스 세션 완벽 동기화: '반+모둠'별 단일 활성 세션 확정 반환 및 숫자 타임스탬프(updatedAtTs) 제공
- * 2. 완치 기록 히스토리 시트 영구 누적(Append) 보장: 재도전 및 모든 완료 기록 영구 보존
- * 3. 교사 대시보드 팀 데이터 리셋 시 웹앱 상태만 초기화하고 시트 누적 기록 온전 보존
+ * [⚡ v3.2 주요 개선 사항]
+ * 1. 긴급 공지 초기화(삭제) API 추가: 교사가 공지 리셋 시 원격 프로퍼티/시트(Z1)의 공지 메시지 즉시 제거 및 학생 기기 실시간 공지 해제
+ * 2. 크로스 디바이스 세션 완벽 동기화: '반+모둠'별 단일 활성 세션 확정 반환 및 숫자 타임스탬프(updatedAtTs) 제공
+ * 3. 완치 기록 히스토리 시트 영구 누적(Append) 보장: 재도전 및 모든 완료 기록 영구 보존
+ * 4. 교사 대시보드 팀 데이터 리셋 시 웹앱 상태만 초기화하고 시트 누적 기록 온전 보존
  */
 
 const SHEET_NAME_STATUS = "골든타임_실시간현황";
@@ -121,6 +122,23 @@ function saveNoticeData(ss, msg, cls, timestamp) {
     const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
     if (sheet) {
       sheet.getRange("Z1").setValue(JSON.stringify({ msg: m, cls: c, ts: ts }));
+    }
+  } catch (e) { }
+}
+
+function clearNoticeData(ss) {
+  const ts = Date.now();
+  try {
+    const props = PropertiesService.getScriptProperties();
+    props.deleteProperty("NOTICE_MSG");
+    props.deleteProperty("NOTICE_CLS");
+    props.setProperty("NOTICE_TIME", String(ts));
+  } catch (e) { }
+
+  try {
+    const sheet = ss.getSheetByName(SHEET_NAME_STATUS);
+    if (sheet) {
+      sheet.getRange("Z1").setValue(JSON.stringify({ msg: "", cls: "all", ts: ts }));
     }
   } catch (e) { }
 }
@@ -240,6 +258,13 @@ function doPost(e) {
     if (data.action === "sendNotice") {
       saveNoticeData(ss, data.msg, data.cls, data.timestamp);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "broadcasted" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 🗑️ 1-1. [긴급 공지 초기화 / 삭제]
+    if (data.action === "clearNotice") {
+      clearNoticeData(ss);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "cleared" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -592,6 +617,13 @@ function doGet(e) {
     if (e && e.parameter && e.parameter.action === "sendNotice") {
       saveNoticeData(ss, e.parameter.msg, e.parameter.cls, e.parameter.timestamp || e.parameter.ts);
       return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "broadcasted_via_get" }))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // 🗑️ GET 방식으로도 긴급 공지 초기화 / 삭제 지원
+    if (e && e.parameter && e.parameter.action === "clearNotice") {
+      clearNoticeData(ss);
+      return ContentService.createTextOutput(JSON.stringify({ status: "success", notice: "cleared_via_get" }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
