@@ -960,9 +960,9 @@
     <div class="grid-overlay"></div>
     <div class="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-8">
 
-      <div class="inline-flex items-center justify-center gap-1.5 sm:gap-2 mb-6 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full border border-red-500/40 bg-red-500/10 select-none text-center max-w-[96vw] mx-auto shadow-sm">
+      <div onclick="openTeacherLogin()" class="inline-flex items-center justify-center gap-1.5 sm:gap-2 mb-6 px-3.5 py-1.5 sm:px-4 sm:py-2 rounded-full border border-red-500/40 bg-red-500/10 cursor-pointer hover:bg-red-500/20 hover:border-red-400 transition-all select-none group text-center max-w-[96vw] mx-auto shadow-sm" title="시스템 관제">
         <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
-        <span class="text-red-400 font-bold text-[10px] min-[380px]:text-[11px] sm:text-xs orb tracking-normal min-[380px]:tracking-wider sm:tracking-widest text-center whitespace-nowrap leading-tight">CRITICAL ALERT — CODE BLUE ACTIVATED</span>
+        <span class="text-red-400 font-bold text-[10px] min-[380px]:text-[11px] sm:text-xs orb tracking-normal min-[380px]:tracking-wider sm:tracking-widest text-center group-hover:text-red-300 whitespace-nowrap leading-tight">CRITICAL ALERT — CODE BLUE ACTIVATED</span>
         <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0"></span>
       </div>
 
@@ -1075,7 +1075,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.6</span>
+            <span class="f-ver">v2.7</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1200,7 +1200,7 @@
           <span class="f-sep text-slate-600">·</span>
           <span class="f-title-group inline-flex items-center gap-1.5">
             <span class="f-tag">Golden Time Medical Center</span>
-            <span class="f-ver">v2.6</span>
+            <span class="f-ver">v2.7</span>
           </span>
         </div>
         <div class="f-legal-line">
@@ -1410,7 +1410,7 @@
             <span class="f-sep text-slate-600">·</span>
             <span class="f-title-group inline-flex items-center gap-1.5">
               <span class="f-tag">Golden Time Medical Center</span>
-              <span class="f-ver">v2.6</span>
+              <span class="f-ver">v2.7</span>
             </span>
           </div>
           <div class="f-legal-line">
@@ -1965,7 +1965,7 @@
     // ============================================================
     // ★ 웹앱 통합 버전 관리 (수정 시 푸터 전체 자동 반영)
     // ============================================================
-    const APP_VERSION = "v2.6";
+    const APP_VERSION = "v2.7";
 
     // 🧭 [화면 상태(View Routing) 단일 진실 공급원]: 백그라운드 리스너에 의한 화면 덮어쓰기/깜빡임 루프 원천 방지
     let currentView = 'login'; // 'login' | 'intro' | 'dashboard'
@@ -4194,20 +4194,6 @@
         clearLoginHint();
         setTimeout(autoFillMembersIfEmpty, 50);
       }));
-
-      // [요구사항 5 보완]: 학생 화면에서는 관리자 버튼이 완전히 제거되었으므로,
-      // 선생님을 위한 간편 접근 방식 2가지(URL 파라미터 '?admin' 또는 '?teacher', 키보드 단축키 Ctrl+Shift+A / Ctrl+Alt+T) 지원
-      const urlParams = new URLSearchParams(window.location.search);
-      if (urlParams.has('admin') || urlParams.has('teacher') || urlParams.has('master')) {
-        setTimeout(openTeacherLogin, 300);
-      }
-
-      window.addEventListener('keydown', (e) => {
-        if ((e.ctrlKey || e.metaKey) && ((e.shiftKey && e.code === 'KeyA') || (e.altKey && e.code === 'KeyT'))) {
-          e.preventDefault();
-          openTeacherLogin();
-        }
-      });
 
       // 교사 대시보드 강제 승인 반 드롭다운 변경 시 관제 학급도 동기화
       document.getElementById('force-approve-cls')?.addEventListener('change', function () {
